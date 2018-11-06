@@ -8,10 +8,10 @@ module RioAWSComponent
 	
 	
 	def self.decor_import_comp
-		title = 'Decor - Standards'
-		dialog = UI::WebDialog.new("#{title}", true, "#{title}", 700, 600, 150, 150, true)
-		webpath=File.join(File.expand_path("..", Dir.pwd), 'webpages') #remove this
-		html_path = File.join(webpath, 'import_comp.html')
+		title 		= 'Decor - Standards'
+		dialog 		= UI::WebDialog.new("#{title}", true, "#{title}", 700, 600, 150, 150, true)
+		webpath		= File.join('E:/git/rio_aws','webpages') #remove this
+		html_path 	= File.join(webpath, 'import_comp.html')
 		dialog.set_file(html_path)
 		dialog.set_position(0, 150)
 		dialog.show
@@ -28,16 +28,41 @@ module RioAWSComponent
 			js_subcat 	= "passSubCategoryToJs("+arr_value.to_s+")"
 			d.execute_script(js_subcat)
 		}
+		
+		
 		dialog.add_action_callback("load-sketchupfile") { |s, cat|
 			cat = cat.split(",")
 			arr_value 	= RioAwsDownload::get_folder_files('decorpot-assets/'+cat[0]+'/'+cat[1]+'/')
-			jpg_arr = [];
-			arr_value[:jpgs].each{|img| 
-				res = RioAwsDownload::download_jpg (arr_value[:prefix]+img)
-				jpg_arr << res}
-			js_command = "passFromRubyToJavascript("+ jpg_arr.to_s + ")"
-			s.execute_script(js_command)
+			puts "arr_value : #{arr_value} : #{arr_value.class}"
+			
+			if !arr_value.empty?
+				puts "arr_value1"
+				if !arr_value[:jpgs].empty?
+					puts "arr_value2"
+					jpg_arr = [];
+					
+					arr_value[:jpgs].each{|img| 
+						res = RioAwsDownload::download_jpg (arr_value[:prefix]+img)
+						jpg_arr << res}
+						jpg_arr << arr_value[:prefix]
+					puts "jpg_arr : #{jpg_arr}"
+					js_command = "passFromRubyToJavascript("+ jpg_arr.to_s + ")"
+					s.execute_script(js_command)
+				end
+			end
 		}
+		
+		dialog.add_action_callback("place_model"){|d, val|
+			self.place_Defcomponent(val)
+		}
+	end
+	
+	def self.place_Defcomponent(val)
+		puts "place_Defcomponent"
+		target_path = RioAwsDownload::download_skp val
+		@model = Sketchup::active_model
+		cdef = @model.definitions.load(target_path)
+		placecomp = @model.place_component cdef.entities[0].definition
 	end
 	
 end
