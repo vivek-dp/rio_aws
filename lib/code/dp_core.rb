@@ -5,10 +5,6 @@
 #-----------------------------------------------
 
 
-require 'sketchup.rb'
-require_relative 'tt_bounds.rb'
-#require_relative 'test.rb'
-
 module DP
 	def self.mod
 		Sketchup.active_model
@@ -34,6 +30,39 @@ module DP
 		compn = Sketchup.active_model.selection[0]
 		return compn.persistent_id if compn.is_a?(Sketchup::ComponentInstance)
 		return nil
+	end
+	
+	def self.current_file_path
+		Sketchup.active_model.path
+	end
+	
+	def self.open_folder folder_path
+		UI.openURL("file:///#{folder_path}")
+	end
+	
+	def self.get_plugin_folder
+		Sketchup.find_support_file("Plugins")
+	end
+	
+	def self.simple_encrypt text, shift=7
+		alphabet = [*('a'..'z'), *('A'..'Z')].join
+		cipher = alphabet.chars.rotate(shift).join
+		return text.tr(alphabet, cipher)
+	end
+	
+	def self.simple_decrypt text, shift=7
+		alphabet = [*('a'..'z'), *('A'..'Z')].join
+		cipher = alphabet.chars.rotate(shift).join
+		return text.tr(cipher, alphabet)
+	end
+	
+	def self.backup_current_file
+		backup_folder 	= get_plugin_folder
+		backup_file 	= current_file_path
+		file_name		= File.basename(backup_file, '.skp')
+		
+		
+		FileUtils.cp(current_file_path, backup_folder)
 	end
 	
 	def self.pid entity
@@ -228,18 +257,6 @@ module DP
     def self.del_face face
         face.edges.each{|x| Sketchup.active_model.entities.erase_entities x unless x.deleted?}
     end
-	
-	def self.simple_encrypt text, shift=7
-		alphabet = [*('a'..'z'), *('A'..'Z')].join
-		cipher = alphabet.chars.rotate(shift).join
-		return text.tr(alphabet, cipher)
-	end
-	
-	def self.simple_decrypt text, shift=7
-		alphabet = [*('a'..'z'), *('A'..'Z')].join
-		cipher = alphabet.chars.rotate(shift).join
-		return text.tr(cipher, alphabet)
-	end
 	
 	#Parse the components and get the hash.
 	def self.parse_components comp_arr
