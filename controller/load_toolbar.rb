@@ -9,7 +9,7 @@ module Decor_Standards
 	toolbar.add_item cmd
 	
 	toolbar = toolbar.add_separator	
-	cmd = UI::Command.new("Get Standards") { self.decor_import_comp }
+	cmd = UI::Command.new("Get Standards") { RioAWSComponent::decor_import_comp }
 	cmd.small_icon = "icons/import.png"
 	cmd.large_icon = "icons/import.png"
 	cmd.tooltip = "Import Standards"

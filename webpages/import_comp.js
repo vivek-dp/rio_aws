@@ -51,11 +51,11 @@ function passFromRubyToJavascript(value) {
 	var skpimg = "";
 	if (value.length != 0){
 		for (var i = 0; i < value.length; i++) {
-			var split_val = value[i].split("/")
+			var split_val = value[i].split("\\")
 			var mname = split_val.slice(-1)
 			var ename = mname[0].split(".")
-			var res = value[i].replace(/skp/g, "jpg");
-			skpimg += '<tr><td style="width:20%;"><input type="hidden" id="imgicon_'+[i]+'" value="'+value[i]+'"><img src="'+res+'" onclick="checkImage('+[i]+');" height="40" width="40" style="cursor:pointer;""></td><td><span style="line-height:40px;">'+ename[0]+'</span></td></tr>'
+			var skpname = value[i].replace(/jpg/g, "skp");
+			skpimg += '<tr><td style="width:20%;"><input type="hidden" id="imgicon_'+[i]+'" value="'+skpname+'"><img src="'+value[i]+'" onclick="checkImage('+[i]+');" height="40" width="40" style="cursor:pointer;""></td><td><span style="line-height:40px;">'+ename[0]+'</span></td></tr>'
 		}
 	} else {
 		skpimg = '<tr><td style="text-align:center;"><i class="fa fa-warning" style="font-size:36px;color:red;"></i>&emsp;<span style="color:red;"><b>No file found!</b></span></td></tr>'

@@ -43,9 +43,9 @@ module RioAwsDownload
 	def self.get_folder_files folder_prefix, bucket_name='test.rio.assets' 
 		s3_client	= get_client
 		bucket_objs = @s3_client.list_objects_v2(
-					{	bucket: bucket_name, 
-						prefix: folder_prefix}
-					)
+						{	bucket: bucket_name, 
+							prefix: folder_prefix}
+						)
 		folder_files 	=[];
 		current_files	= []
 		if bucket_objs.contents.length > 1
@@ -64,10 +64,10 @@ module RioAwsDownload
 		puts current_files
 		
 		#If skps are found
-		skp_files={:skps=>[], :pngs=>[]}
+		skp_files={:skps=>[], :jpgs=>[], :prefix=>folder_prefix}
 		current_files.each { |fname|
 			skp_files[:skps] << fname if fname.end_with?('.skp')
-			skp_files[:pngs] << fname if fname.end_with?('.png')
+			skp_files[:jpgs] << fname if fname.end_with?('.jpg')
 		}
 		puts "skps : #{skp_files}"
 		
@@ -82,6 +82,22 @@ module RioAwsDownload
 	def self.download_skp file_path, bucket_name='test.rio.assets' 
 		s3_client	= get_client
 		temp_dir 	= ENV['TEMP']
+		file_name 	= File.basename(file_path)
+		target_path = temp_dir + "\\" + file_name
+		begin
+			resp 	= s3_client.get_object(bucket: bucket_name, key: file_path, response_target: target_path)
+			puts "File download success"
+			return target_path
+		rescue Aws::S3::Errors::NoSuchKey
+			puts "File Does not exist"
+			return nil
+		end
+		return nil
+	end
+	
+	def self.download_jpg file_path, bucket_name='test.rio.assets' 
+		s3_client	= get_client
+		temp_dir	= ENV['TEMP']
 		file_name 	= File.basename(file_path)
 		target_path = temp_dir + "\\" + file_name
 		begin

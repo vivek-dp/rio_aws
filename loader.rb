@@ -10,7 +10,7 @@ module Decor_Standards
 
 	Sketchup::require File.join(cont_path, 'load_toolbar.rb')
 	Sketchup::require File.join(cont_path, 'create_wall.rb')
-	Sketchup::require File.join(cont_path, 'import_component.rb')
+	Sketchup::require File.join(cont_path, 'import_component_aws.rb')
 	Sketchup::require File.join(cont_path, 'dynamic_configuration.rb')
 	Sketchup::require File.join(cont_path, 'export_report.rb')
 	Sketchup::require File.join(cont_path, 'working_drawing.rb')
