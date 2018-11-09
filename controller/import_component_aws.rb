@@ -58,10 +58,16 @@ module RioAWSComponent
 	end
 	
 	def self.place_Defcomponent(val)
-		puts "place_Defcomponent"
+		puts "place_Defcomponent : val : #{val}"
 		target_path = RioAwsDownload::download_skp val
 		@model = Sketchup::active_model
+		puts "target_path : #{target_path}"
 		cdef = @model.definitions.load(target_path)
+		
+		dict_name = 'rio_params'
+		key = 'standard_comp'
+		cdef.entities[0].definition.set_attribute(dict_name, key, 'rio_comp')
+		
 		placecomp = @model.place_component cdef.entities[0].definition
 	end
 	
