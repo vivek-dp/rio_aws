@@ -30,7 +30,7 @@ OutputDir=E:\{#TOOL_DIR}
 ;exe output directory
 Compression=lzma
 SolidCompression=yes
-UninstallFilesDir={sd}\{#TOOL_DIR}\Uninstall
+;UninstallFilesDir={sd}\{#TOOL_DIR}\Uninstall
 
 [Code]
 procedure InitializeWizard;
@@ -52,9 +52,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ;Source: "C:\Program Files (x86)\Inno Setup 5\Examples\MyProg.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "E:\Rio_install\*"; DestDir: {sd}\{#TOOL_DIR}; Flags: ignoreversion recursesubdirs createallsubdirs
+;Source: "E:\Rio_install\*"; DestDir: {sd}\{#TOOL_DIR}; Flags: ignoreversion recursesubdirs createallsubdirs
 ;Source: "E:\Rio_install\rio_extension.rb"; DestDir: {app};
-Source: "E:\Rio_install\rio_extension.rb"; DestDir: {userappdata}\SketchUp\SketchUp 2017\SketchUp\Plugins;
+Source: "E:\Rio_install\controller\*"; DestDir: {sd}\{#TOOL_DIR}\controller; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "E:\Rio_install\webpages\*"; DestDir: {sd}\{#TOOL_DIR}\webpages; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "E:\Rio_install\lib\*"; DestDir: {sd}\{#TOOL_DIR}\lib; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "E:\Rio_install\rio_loader.rb"; DestDir: {sd}\{#TOOL_DIR};
+Source: "E:\Rio_install\install\rio_extension.rb"; DestDir: {userappdata}\SketchUp\SketchUp 2017\SketchUp\Plugins;
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

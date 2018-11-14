@@ -5,18 +5,18 @@
 # #DecorPot.new.working_drawing
 #-------------------------------------------------------------------------------    
 
-require_relative 'core.rb'
+require_relative '../lib/code/dp_core.rb'
 require "prawn"
 
 module WorkingDrawing
     include DP
     
-    def initialize
+    def self.initialize
         DP::create_layers
 		add_lamination_menu
     end
     
-    def get_outline_pts comp, view, offset
+    def self.get_outline_pts comp, view, offset
         return nil unless comp.valid?
         bounds = comp.bounds
         hit_pts = []
@@ -52,14 +52,14 @@ module WorkingDrawing
         face_pts
     end
     
-    def set_lamination comp, value
+    def self.set_lamination comp, value
 		return nil unless comp.valid?
         dict_name = 'lamination_code'
         key = 'lamination'
         comp.set_attribute(dict_name, key, value)
     end
 
-    def get_lamination comp
+    def self.get_lamination comp
 		return nil unless comp.valid?
         dict_name = 'lamination_code'
         key = 'lamination'
@@ -67,7 +67,7 @@ module WorkingDrawing
         return lam_code
     end
 	
-	def add_lamination_menu
+	def self.add_lamination_menu
 		UI.add_context_menu_handler do |popup|
 			sel = Sketchup.active_model.selection
 			if sel[0].is_a?(Sketchup::ComponentInstance)
@@ -83,7 +83,13 @@ module WorkingDrawing
 		end  
 	end
     
-    def add_comp_dimension comp, view='top', show_dimension=true
+	def self.add_dimension_pts pt1, pt2, vector
+		dim_l 	= Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+		dim_l.material.color = 'red'
+		dim_l
+	end
+	
+    def self.add_comp_dimension comp, view='top', show_dimension=true
         return nil unless comp.valid?
         bounds = comp.bounds
         
@@ -98,13 +104,13 @@ module WorkingDrawing
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                 pt1.z=500;pt2.z=500
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
-                dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,2, Geom::Vector3d.new(-dim_off,0,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                     pt1.z=500;pt2.z=500
-                    dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                    dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
             when 90
@@ -112,13 +118,13 @@ module WorkingDrawing
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                 pt1.z=500;pt2.z=500
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
-                dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,dim_off,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                     pt1.z=500;pt2.z=500
-                    dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                    dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
             when 180, -180
@@ -126,13 +132,13 @@ module WorkingDrawing
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                 pt1.z=500;pt2.z=500
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
-                dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,2, Geom::Vector3d.new(-dim_off,0,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                     pt1.z=500;pt2.z=500
-                    dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)	
+                    dim_l = add_dimension_pts(pt1, pt2, vector)	
                     dim_l.layer = layer_name
                 end
             when -90
@@ -140,80 +146,83 @@ module WorkingDrawing
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                 pt1.z=500;pt2.z=500
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
-                dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,-dim_off,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
                     pt1.z=500;pt2.z=500
-                    dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+                    dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
             end	
             lam_code = get_lamination comp
             text = Sketchup.active_model.entities.add_text lam_code, mid_point, lvector if lam_code && !lam_code.empty?
-			text.layer = 'DP_lamination' if text
+			if text
+				text.layer = 'DP_lamination' 
+				text.material.color = 'blue'
+			end
         when 'left'
 			if show_dimension
 				st_index, end_index, vector = 2,6, Geom::Vector3d.new(0,dim_off,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 				pt1.x=-500;pt2.x=-500
-				dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
 
 			st_index, end_index, vector = 2,0, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 			pt1.x=-500;pt2.x=-500
-			dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
         when 'right'
 			if show_dimension
 				st_index, end_index, vector = 1,5, Geom::Vector3d.new(0,-dim_off,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 				pt1.x=500;pt2.x=500
-				dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
 			
 			st_index, end_index, vector = 1,3, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 			pt1.x=500;pt2.x=500
-			dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
         when 'front'
 			
 			st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 			pt1.y=-500;pt2.y=-500
-			dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
 			
 			if show_dimension
 				st_index, end_index, vector = 0,4, Geom::Vector3d.new(-dim_off,0,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 				pt1.y=-500;pt2.y=-500
-				dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
         when 'back'
             st_index, end_index, vector = 2,3, Geom::Vector3d.new(0,0,-dim_off)
             pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
             pt1.y=500;pt2.y=500
-            dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+            dim_l = add_dimension_pts(pt1, pt2, vector)
             dim_l.layer = layer_name
 			if show_dimension	
 				st_index, end_index, vector = 2,6, Geom::Vector3d.new(dim_off,0,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
 				pt1.y=500;pt2.y=500
-				dim_l = Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
+				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
         end
         
     end
     
-    def add_row_dimension row, view
+    def self.add_row_dimension row, view
         comp_names = []
 
         row.each{ |id|
@@ -228,7 +237,7 @@ module WorkingDrawing
         }
     end
     
-    def add_dimensions comp_h, view='top'
+    def self.add_dimensions comp_h, view='top'
         #outline_drawing comp_h, view
         #corners = get_corners view
         rows = get_comp_rows comp_h, view
@@ -247,7 +256,7 @@ module WorkingDrawing
         }
     end
     
-    def get_comp_rows comp_h, view
+    def self.get_comp_rows comp_h, view
         corners = []
 		singles = []
 		comp_h.each_pair{|x, y| 
@@ -308,7 +317,7 @@ module WorkingDrawing
         rows
     end
 
-    def outline_drawing view, offset=500 #comp_h not needed
+    def self.outline_drawing view, offset=500 #comp_h not needed
         comps 	= DP::get_visible_comps view
 		comp_h 	= DP::parse_components comps 
  
@@ -325,14 +334,14 @@ module WorkingDrawing
         add_dimensions comp_h, view
     end
     
-	def get_layer_entities layer_name
+	def self.get_layer_entities layer_name
 		model = Sketchup::active_model
 		ents = model.entities
 		layer_ents = []
 		layer_ents = ents.select{|x| x.layer.name==layer_name}
 	end
 	
-	def delete_layer_entities layer_name
+	def self.delete_layer_entities layer_name
 		layer_ents = get_layer_entities layer_name
 		layer_ents.each{|ent| 
 			unless ent.deleted?
@@ -342,7 +351,7 @@ module WorkingDrawing
 	end
 	
     #Create the working drawing for the specific view
-	def working_drawing view='top'
+	def self.working_drawing view='top'
 		views = ['top', 'left', 'right', 'back', 'front']
 		return nil unless views.include?(view)
 
@@ -364,16 +373,16 @@ module WorkingDrawing
         puts "done"
 	end
     
-    def get_all_views
+    def self.get_all_views
         views = ['top', 'left', 'right', 'back', 'front']
         views.each { |v|  working_drawing v  }
     end
     
-    def get_single_adj comp_h
+    def self.get_single_adj comp_h
         singles=[]; comp_h.each_pair{|x, y| singles<<x if y[:type] == :single}; return singles
     end
     
-    def get_corners comp_h
+    def self.get_corners comp_h
         corners = []
         comp_h.each_pair{|x, y| 
             if y[:type] == :double
@@ -396,7 +405,7 @@ module WorkingDrawing
         return corners
     end
 	
-	def write_imageeeee(val)
+	def self.write_imageeeee(val)
 		view = Sketchup.active_model.active_view
 		if val == 'top'
 			@name = "Top View"
@@ -427,7 +436,43 @@ module WorkingDrawing
 		view.write_image keys
 	end
 	
-	def export_working_drawing
+	
+	def self.get_rio_components
+		Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute('rio_params', 'standard_comp')=='rio_comp'}
+	end
+			
+	def self.check_xn check_comp, comp_a
+		comp_a.each { |comp|
+			next if comp == check_comp
+			xn = comp.bounds.intersect check_comp.bounds
+			return true if xn.width * xn.height * xn.depth != 0
+		}
+		return false
+	end
+			
+	def self.scan_components
+		comp_a = get_rio_components
+		adj_comps = []
+		unless comp_a.empty?	
+			comp_a.each{|comp|
+				resp = check_xn comp, comp_a
+				adj_comps << comp if resp
+			}
+			return adj_comps
+		end
+		puts "adj_comps : #{adj_comps}"
+		
+		adj_comps
+	end	
+	
+	def self.export_working_drawing
+		adj_comps = scan_components
+		if !adj_comps.empty?
+			Sketchup.active_model.selection.clear
+			adj_comps.each{|comp| Sketchup.active_model.selection.add comp}
+			UI.messagebox("The selected components overlap each other. Working drawing doesnt allow component overlap.")
+			return false
+		end
 		viloop = []
 		views_to_process = ["Top","Front","Right","Left","Back"]
 		#views_to_process = ["Top"]
@@ -495,13 +540,18 @@ module WorkingDrawing
 		}
 
 		FileUtils.cd(outpath)
-		Prawn::Document.generate("#{@title}.pdf", :page_size=>"A4", :page_layout=>:landscape) do
-			viloop.each {|vp|
-				image outpath+vp+end_format, width: 750, height: 500, resolution: 1920
-			}
+		f = File.open("#{@title}.pdf", 'w')
+		if f.is_a?(File)
+			f.close
+			Prawn::Document.generate("#{@title}.pdf", :page_size=>"A4", :page_layout=>:landscape) do
+				viloop.each {|vp|
+					image outpath+vp+end_format, width: 750, height: 500, resolution: 1920
+				}
+			end
+			UI.messagebox 'Export successful',MB_OK
+		else
+			UI.messagebox 'Cannot write to pdf.Please Close and try again if pdf is open.',MB_OK
 		end
-		
-		UI.messagebox 'Export successful',MB_OK
 		#system('explorer %s' % (outpath))
 	end
 end

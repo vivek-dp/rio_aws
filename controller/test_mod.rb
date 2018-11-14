@@ -15,3 +15,8 @@ dialog.add_action_callback("loadmaincatagory"){|a, b|
 	js_maincat 	= "passMainCategoryToJs("+mainarray.to_s+")"
 	a.execute_script(js_maincat)
 }
+
+
+def check_component_position region, component
+	
+end

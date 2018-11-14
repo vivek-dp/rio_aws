@@ -169,9 +169,5 @@ module Decor_Standards
 		workbook.close
 		UI.messagebox 'Export successful',MB_OK
 	end
-	
-	def self.export_working_drawing views=[:top]
-		views.each{|view|
-		}
-	end
+
 end

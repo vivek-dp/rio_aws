@@ -314,6 +314,68 @@ module DP
 		return arr
 	end
 	
+	#------------------------------------------------------------------------------------
+	#This test checks if the objects are in the room based on the raytest with the floor.
+	#------------------------------------------------------------------------------------
+	def self.visibility_raytest_floor
+		comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance)
+		floor_face = fsel
+
+		puts "floor_face not selected " if floor_face.nil?
+		Sketchup.active_model.selection.clear
+		if !floor_face.nil?
+			zvector = Geom::Vector3d.new(0, 0, -1)
+			visible_ents = []
+
+			comps.each{ |comp|
+				visible_ents = Sketchup.active_model.entities.select{|x| x.hidden? == false} 
+				visible_ents.each{|ent| 
+					next if ent == comp 
+					next if ent == floor_face
+					ent.hidden=true 
+				}
+				(0..3).each{|i| 
+					pt 			= comp.bounds.corner(i);
+					hit_item	= Sketchup.active_model.raytest(pt, zvector);
+					#puts hit_item
+					if hit_item && hit_item[1][0] == floor_face
+						#puts "floor_face"
+					else
+						puts "Exterior : #{pt}"
+						Sketchup.active_model.selection.add(comp)
+						visible_ents.each{|x| x.hidden=false}
+						#return false
+					end
+				}
+				visible_ents.each{|x| x.hidden=false}
+			}
+		end
+		#return true
+	end
+
+	#------------------------------------------------------------------------------------
+	#This test checks for the bounds of every object to be within the bounds of the room.
+	#------------------------------------------------------------------------------------
+	def self.check_room_bounds
+		Sketchup.active_model.selection.clear
+		comps 		= Sketchup.active_model.entities.grep(Sketchup::ComponentInstance) #change to rio comp test
+		get_room = comps.select{|x| x.definition.name=='room_bounds'}
+		if get_room.empty?
+			puts "room_bounds object not found"
+		else
+			room_bounds = get_room[0]
+			comps = comps - [room_bounds]
+			comps.each{|comp|
+				if room_bounds.bounds.contains?(comp.bounds)
+					puts "true"
+				else
+					puts "false"
+					Sketchup.active_model.selection.add comp
+				end
+			}
+		end
+	end
+	
 	def self.test_mod_fun
 		puts "test_mod_fun"
 	end
