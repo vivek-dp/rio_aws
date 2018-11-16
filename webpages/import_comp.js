@@ -53,7 +53,8 @@ function passFromRubyToJavascript(value) {
 	file_locn = value[value.length-1]
 	//window.alert("file_locn"+file_locn);
 	if (value.length != 0){
-		for (var i = 0; i < value.length-1; i++) {
+		//alert(value.length);
+		for (var i = 0; i < value.length; i++) {
 			//window.alert(value[i]);
 			var split_val = value[i].split("\\")
 			var mname = split_val.slice(-1)

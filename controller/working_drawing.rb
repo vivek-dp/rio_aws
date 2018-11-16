@@ -13,6 +13,7 @@ module WorkingDrawing
     
     def self.initialize
         DP::create_layers
+        @add_menu = false
 		add_lamination_menu
     end
     
@@ -66,21 +67,42 @@ module WorkingDrawing
         lam_code = comp.get_attribute(dict_name, key)
         return lam_code
     end
-	
+    
 	def self.add_lamination_menu
-		UI.add_context_menu_handler do |popup|
-			sel = Sketchup.active_model.selection
-			if sel[0].is_a?(Sketchup::ComponentInstance)
-				lam_code = get_lamination sel[0]
-				lam_code = "" unless lam_code
-				popup.add_item('Lamination Code') {
-					prompts = ["Enter lamination code"]
-					defaults = [lam_code]
-					input = UI.inputbox(prompts, defaults, "Lamination code.")
-					set_lamination sel[0], input[0] if input
-				}
-			end
-		end  
+        puts "add_lamination_menu"
+        if (!@add_menu)
+            UI.add_context_menu_handler do |popup|
+                sel = Sketchup.active_model.selection[0]
+                if sel.is_a?(Sketchup::ComponentInstance)
+                    lam_code = get_lamination sel
+                    lam_code = "" unless lam_code
+                    popup.add_item('Lamination Code') {
+                        prompts = ["Enter lamination code"]
+                        defaults = [lam_code]
+                        input = UI.inputbox(prompts, defaults, "Lamination code.")
+                        set_lamination sel, input[0] if input
+                    }
+                    popup.add_item('Add Rio component') {
+                        prompts = ["Placement"]
+                        defaults = ["Left"]
+                        list = ["Left|Right|Top"]
+                        input = UI.inputbox(prompts, defaults, list, "Lamination code.")
+
+                        DP::set_state 'comp-clicked:'+input[0] if input
+                        RioAWSComponent::decor_import_comp
+                    }
+                    posn = sel.get_attribute :rio_atts, "position"
+                    if posn
+                        popup.add_item('Add Rio component') {
+
+                            posn = sel.get_attribute :rio_atts, "position"
+                            DP::set_state 'wall-clicked:'+posn
+                        }
+                    end
+                end
+            end  
+            @add_menu=true
+        end
 	end
     
 	def self.add_dimension_pts pt1, pt2, vector
