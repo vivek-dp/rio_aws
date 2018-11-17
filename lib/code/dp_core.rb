@@ -433,7 +433,11 @@ module DP
         Sketchup.active_model.active_layer='DP_Floor'
         floor_face = Sketchup.active_model.entities.add_face(pts)
 		floor_face.set_attribute :rio_atts, 'position', 'floor'
+		fcolor    			= Sketchup::Color.new "825840"
+		floor_face.material 		= fcolor
+        floor_face.back_material 	= fcolor
 
+		fcolor    			= Sketchup::Color.new "4e90ec"
         floor_face.edges.each{ |edge|
             verts 	= edge.vertices
             pt1   	= verts[0]
@@ -442,7 +446,7 @@ module DP
             pt4		= pt1.position.offset(zvector, wheight)
             puts pt1, pt2, pt3, pt4
             face 	= mod.entities.add_face(pt1, pt2, pt3, pt4)
-            fcolor    			= Sketchup::Color.new "Green"
+           
             #fcolor.alpha 		= 0.5
             
             position = get_position edge, floor_face

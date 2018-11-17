@@ -245,6 +245,7 @@ module RioAWSComponent
                     if comp_bound_check == false
                         UI.messagebox("Component placed outside room bounds")
                     end
+                    Sketchup.active_model.selection.add inst
                 end
             end
             if auto_mode == false
