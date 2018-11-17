@@ -340,6 +340,7 @@ module DP
 	
 	#------------------------------------------------------------------------------------
 	#This test checks if the objects are in the room based on the raytest with the floor.
+	#
 	#------------------------------------------------------------------------------------
 	def self.visibility_raytest_floor
 		comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance)
@@ -358,12 +359,12 @@ module DP
 					next if ent == floor_face
 					ent.hidden=true 
 				}
-				(0..3).each{|i| 
+				(4..7).each{|i| 
 					pt 			= comp.bounds.corner(i);
 					hit_item	= Sketchup.active_model.raytest(pt, zvector);
 					#puts hit_item
 					if hit_item && hit_item[1][0] == floor_face
-						#puts "floor_face"
+						puts "floor_face"
 					else
 						puts "Exterior : #{pt}"
 						Sketchup.active_model.selection.add(comp)
@@ -380,10 +381,10 @@ module DP
 	#------------------------------------------------------------------------------------
 	#This test checks for the bounds of every object to be within the bounds of the room.
 	#------------------------------------------------------------------------------------
-	def self.check_room_bounds
+	def self.check_room_bounds_all_comps
 		Sketchup.active_model.selection.clear
 		comps 		= Sketchup.active_model.entities.grep(Sketchup::ComponentInstance) #change to rio comp test
-		get_room = comps.select{|x| x.definition.name=='room_bounds'}
+		get_room 	= Sketchup.active_model.select{|x| x.get_attribute :rio_atts, 'position'}
 		if get_room.empty?
 			puts "room_bounds object not found"
 		else
@@ -399,6 +400,25 @@ module DP
 			}
 		end
 	end
+
+	def self.check_room_bounds comp
+		Sketchup.active_model.selection.clear
+		faces 	= Sketchup.active_model.entities.select{|x| !x.get_attribute(:rio_atts, 'position').nil?}
+		temp_group = Sketchup.active_model.entities.add_group(faces)
+		
+		flag = false
+		if temp_group.nil?
+			puts "Floor object not found"
+		else
+			if temp_group.bounds.contains?(comp.bounds)
+				flag = true
+			else
+				Sketchup.active_model.selection.add comp
+			end
+		end
+		temp_group.explode
+		return flag
+	end
     
     def self.create_wall inp_h
         mod 	= Sketchup.active_model
@@ -412,6 +432,7 @@ module DP
         pts = [Geom::Point3d.new(0,0,0), Geom::Point3d.new(wwidth,0,0), Geom::Point3d.new(wwidth,wlength,0), Geom::Point3d.new(0,wlength,0)]
         Sketchup.active_model.active_layer='DP_Floor'
         floor_face = Sketchup.active_model.entities.add_face(pts)
+		floor_face.set_attribute :rio_atts, 'position', 'floor'
 
         floor_face.edges.each{ |edge|
             verts 	= edge.vertices
@@ -503,9 +524,10 @@ module DP
         #mod.entities.add_group(Sketchup.active_model.selection)
         
         faces.flatten.uniq.each { |face|  
-            position = face.get_attribute :rio_atts, 'position'
+			position = face.get_attribute :rio_atts, 'position'
+			position = 'floor' if position.nil?
             gp = mod.entities.add_group(face)
-            gp.set_attribute :rio_atts, 'position', position if position
+            gp.set_attribute :rio_atts, 'position', position 
         }
     end
     
