@@ -6,7 +6,7 @@ module Decor_Standards
 		dialog.set_position(0, 150)
 		dialog.show
 
-		dialog.add_action_callback("loadmaincatagory"){|a, b|
+		dialog.add_action_callback("loadmaincategory"){|a, b|
 			path = DECORPOT_ASSETS + "/"
 			mainarray = []
 			dirpath = Dir[path+"*"]

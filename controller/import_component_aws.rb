@@ -15,46 +15,51 @@ module RioAWSComponent
 		dialog.set_file(html_path)
 		dialog.set_position(0, 150)
 		dialog.show
-		
-#		dialog.add_action_callback("loadmaincatagory"){|a, b|
-#			mainarray 	= RioAwsDownload::get_folder_files('decorpot-assets/')
-#			
-#			js_maincat 	= "passMainCategoryToJs("+mainarray.to_s+")"
-#			a.execute_script(js_maincat)
-#		}
-#		dialog.add_action_callback("get_category") {|d, val|
-#			val 		= val.to_s
-#			arr_value 	= RioAwsDownload::get_folder_files('decorpot-assets/'+val+'/')
-#			js_subcat 	= "passSubCategoryToJs("+arr_value.to_s+")"
-#			d.execute_script(js_subcat)
-#		}
-#		
-#		
-#		dialog.add_action_callback("load-sketchupfile") { |s, cat|
-#			cat = cat.split(",")
-#			arr_value 	= RioAwsDownload::get_folder_files('decorpot-assets/'+cat[0]+'/'+cat[1]+'/')
-#			puts "arr_value : #{arr_value} : #{arr_value.class}"
-#			
-#			if !arr_value.empty?
-#				puts "arr_value1"
-#				if !arr_value[:jpgs].empty?
-#					puts "arr_value2"
-#					jpg_arr = [];
-#					
-#					arr_value[:jpgs].each{|img| 
-#						res = RioAwsDownload::download_jpg (arr_value[:prefix]+img)
-#						jpg_arr << res}
-#						jpg_arr << arr_value[:prefix]
-#					puts "jpg_arr : #{jpg_arr}"
-#					js_command = "passFromRubyToJavascript("+ jpg_arr.to_s + ")"
-#					s.execute_script(js_command)
-#				end
-#			end
-#		}
 
+=begin        
+        #Begin : AWS download the assets..................
+		dialog.add_action_callback("loadmaincategory"){|a, b|
+			mainarray 	= RioAwsDownload::get_folder_files('decorpot-assets/')
+			
+			js_maincat 	= "passMainCategoryToJs("+mainarray.to_s+")"
+			a.execute_script(js_maincat)
+		}
+		dialog.add_action_callback("get_category") {|d, val|
+			val 		= val.to_s
+			arr_value 	= RioAwsDownload::get_folder_files('decorpot-assets/'+val+'/')
+			js_subcat 	= "passSubCategoryToJs("+arr_value.to_s+")"
+			d.execute_script(js_subcat)
+		}
+		
+		
+		dialog.add_action_callback("load-sketchupfile") { |s, cat|
+			cat = cat.split(",")
+			arr_value 	= RioAwsDownload::get_folder_files('decorpot-assets/'+cat[0]+'/'+cat[1]+'/')
+			puts "arr_value : #{arr_value} : #{arr_value.class}"
+			
+			if !arr_value.empty?
+				puts "arr_value1"
+				if !arr_value[:jpgs].empty?
+					puts "arr_value2"
+					jpg_arr = [];
+					
+					arr_value[:jpgs].each{|img| 
+						res = RioAwsDownload::download_jpg (arr_value[:prefix]+img)
+						jpg_arr << res}
+						jpg_arr << arr_value[:prefix]
+					puts "jpg_arr : #{jpg_arr}"
+					js_command = "passFromRubyToJavascript("+ jpg_arr.to_s + ")"
+					s.execute_script(js_command)
+				end
+			end
+        }
+        #End : AWS download the assets..................
+=end
+
+        #Begin : Temporary code for local access of the assets...
         decorpot_asset = "E:/git/rio_aws/assets"
 
-        dialog.add_action_callback("loadmaincatagory"){|a, b|
+        dialog.add_action_callback("loadmaincategory"){|a, b|
 			path = decorpot_asset + "/"
 			mainarray = []
 			dirpath = Dir[path+"*"]
@@ -90,7 +95,8 @@ module RioAWSComponent
             puts "@subarr : #{@subarr}"
 			js_command = "passFromRubyToJavascript("+ @subarr.to_s + ")"
 			s.execute_script(js_command)
-		}
+        }
+        #End : Temporary code for local access of the assets...
 		
 		dialog.add_action_callback("place_model"){|d, val|
 			self.place_Defcomponent(val)
@@ -107,36 +113,72 @@ module RioAWSComponent
 		puts "target_path : #{target_path}"
 		cdef = @model.definitions.load(target_path)
 		
-		dict_name = 'rio_params'
-		key = 'standard_comp'
-		cdef.entities[0].definition.set_attribute(dict_name, key, 'rio_comp')
-		
-        status = DP::get_state 
-        
+		dict_name   = 'rio_params'
+		key         = 'rio_comp'
+        cdef.set_attribute(dict_name, key, 'true')
+        auto_mode = DP::get_auto_mode
+
+        if auto_mode && auto_mode != false
+            status = 'comp-clicked:'+DP::get_auto_mode
+        else
+            status = DP::get_state 
+        end
+        puts "status : #{auto_mode} : #{status}"
         if status
             if status.start_with?('wall-clicked')
-                 
+                wall        = Sketchup.active_model.selection[0]
+                wall_posn   = wall.get_attribute :rio_atts, 'position'
+
+                case wall_posn
+                when 'left'
+                    rotz = 90
+                    comp_origin = wall.bounds.corner(0)
+                when 'front'
+                    rotz = 180
+                    comp_origin = wall.bounds.corner(1)
+                when 'right'
+                    rotz = -90
+                    comp_origin = wall.bounds.corner(2)
+                when 'back'
+                    rotz = 0
+                    comp_origin = wall.bounds.corner(0)
+                end
+                tr      = Geom::Transformation.rotation([0, 0, 0], Z_AXIS, rotz.degrees)
+                inst    = Sketchup.active_model.active_entities.add_instance cdef, tr
+                
+                case wall_posn
+                when 'left'
+                    trans   = Geom::Transformation.new([comp_origin.x+inst.bounds.width, comp_origin.y, comp_origin.z])
+                when 'front'
+                    puts "front"
+                    trans   = Geom::Transformation.new([comp_origin.x, comp_origin.y+inst.bounds.height, comp_origin.z])
+                when 'right'
+                    trans   = Geom::Transformation.new([comp_origin.x-inst.bounds.width, comp_origin.y, comp_origin.z])
+                when 'back'
+                    trans   = Geom::Transformation.new([comp_origin.x, comp_origin.y-inst.bounds.height, comp_origin.z])
+                end
+                inst.transform!(trans)
+
             elsif status.start_with?('comp-clicked')
                 posn = status.split(':')[1].downcase
                 comp = Sketchup.active_model.selection[0]
+                if comp.nil?
+                    puts "No component selected"
+                    return
+                end
                 rotz = comp.transformation.rotz
                 
                 #Sketchup.active_model.place_component fsel.definition
                 
                 puts "posn : #{posn} : #{rotz}"
                 comp_origin = comp.transformation.origin
-                comp_origin = comp.transformation.origin
+                
                 case posn
                 when 'left'
                     case rotz
                     when 0
-                #        orig_tr =Geom::Transformation.new([0,0,0])
-                #        inst    =Sketchup.active_model.active_entities.add_instance cdef, orig_tr
-                #        inst.transform!(orig_tr)
-
                         trans   = Geom::Transformation.new([comp_origin.x-cdef.bounds.width, comp_origin.y, comp_origin.z])
                         Sketchup.active_model.active_entities.add_instance cdef, trans
-                        #inst.transform!(trans)
                     when 90
                         tr      = Geom::Transformation.rotation([0, 0, 0], Z_AXIS, rotz.degrees)
                         inst    = Sketchup.active_model.active_entities.add_instance cdef, tr
@@ -197,8 +239,11 @@ module RioAWSComponent
                     end
                 end
             end
+            if DP::get_auto_mode == false
+                DP::set_state false
+            end
         else
-            placecomp = @model.place_component cdef.entities[0].definition
+            placecomp = @model.place_component cdef
         end
 	end
 	

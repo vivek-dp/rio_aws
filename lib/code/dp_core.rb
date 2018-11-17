@@ -89,7 +89,19 @@ module DP
     
     def self.set_state status
         @state=status
-    end
+	end
+	
+	def self.get_auto_mode
+		@rio_auto_mode
+	end
+	
+	def self.set_auto_mode position
+		@rio_auto_mode = position
+	end
+
+	def self.off_auto_mode
+		@rio_auto_mode = false
+	end
 	
 	#Input 	:	Face, offset distance
 	#return :	Array of offset points

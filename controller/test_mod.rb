@@ -9,7 +9,7 @@ dialog.set_file(html_path)
 dialog.set_position(0, 150)
 dialog.show
 
-dialog.add_action_callback("loadmaincatagory"){|a, b|
+dialog.add_action_callback("loadmaincategory"){|a, b|
 	mainarray 	= RioAwsDownload::get_folder_files('decorpot-assets/Dynamic-Components/')
 	
 	js_maincat 	= "passMainCategoryToJs("+mainarray.to_s+")"

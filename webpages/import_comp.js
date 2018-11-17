@@ -1,6 +1,6 @@
 function loadMainCategory(){
 	var val = 1;
-	window.location = 'skp:loadmaincatagory@'+ val;
+	window.location = 'skp:loadmaincategory@'+ val;
 }
 
 function passMainCategoryToJs(main){

@@ -98,7 +98,13 @@ module WorkingDrawing
                             posn = sel.get_attribute :rio_atts, "position"
                             DP::set_state 'wall-clicked:'+posn
                         }
-                    end
+					end
+				elsif sel.is_a?(Sketchup::Group)
+					popup.add_item('Add Rio Component') {
+						posn = sel.get_attribute :rio_atts, "position"
+						DP::set_state 'wall-clicked:'+posn
+						RioAWSComponent::decor_import_comp
+					}
                 end
             end  
             @add_menu=true
@@ -458,9 +464,8 @@ module WorkingDrawing
 		view.write_image keys
 	end
 	
-	
 	def self.get_rio_components
-		Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute('rio_params', 'standard_comp')=='rio_comp'}
+		Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute('rio_params', 'rio_comp')=='true'}
 	end
 			
 	def self.check_xn check_comp, comp_a
