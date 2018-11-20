@@ -556,7 +556,27 @@ module DP
             return "left"
         end
         return nil
-    end
+	end
+	
+	def self.save_dwg dir_path
+
+		model 		= Sketchup.active_model
+
+		files 		= Dir.glob(dir_path)
+		files.each { |dwg_path|
+			res 		= model.import dwg_path, false
+
+			Sketchup.active_model.definitions.purge_unused
+			Sketchup.active_model.layers.purge_unused
+			Sketchup.active_model.materials.purge_unused
+			Sketchup.active_model.styles.purge_unused
+
+			skp_path 	= dwg_path.split('.')[0]+'.skp'
+			Sketchup.active_model.save(skp_path)
+
+			es.each{|x| es.erase_entities x }
+		}
+	end
 	
 	def self.test_mod_fun
 		puts "test_mod_fun"

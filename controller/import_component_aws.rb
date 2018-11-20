@@ -102,7 +102,7 @@ module RioAWSComponent
 		dialog.add_action_callback("place_model"){|d, val|
 			self.place_Defcomponent(val)
 		}
-	end
+	end #decor_import_comp
 	
 	def self.place_Defcomponent(val)
 		puts "place_Defcomponent : val : #{val}"
@@ -240,6 +240,7 @@ module RioAWSComponent
                             inst.transform!(trans)
                         end
                     end
+
                     puts "inst : #{inst}"
                     comp_bound_check = DP::check_room_bounds inst
                     if comp_bound_check == false
@@ -256,6 +257,6 @@ module RioAWSComponent
         else
             placecomp = @model.place_component cdef
         end
-	end
+	end #place_Defcomponent
 	
-end
+end #RioAWSComponent
