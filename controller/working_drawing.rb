@@ -9,7 +9,9 @@ require_relative '../lib/code/dp_core.rb'
 require "prawn"
 
 module WorkingDrawing
-    include DP
+	include DP
+	
+	@@drawing_image_offset = 500
     
     def self.initialize
         DP::create_layers
@@ -149,7 +151,10 @@ module WorkingDrawing
         bounds = comp.bounds
         
         layer_name = 'DP_dimension_'+view
-        dim_off = 4*rand
+		dim_off = 4*rand + 1
+		
+		offset = @@drawing_image_offset
+
         case view
         when 'top'   
             rotz = comp.transformation.rotz
@@ -157,56 +162,56 @@ module WorkingDrawing
             when 0
                 st_index, end_index, vector, lvector = 2,3, Geom::Vector3d.new(0,dim_off,0), Geom::Vector3d.new(0,2*dim_off,0)
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                pt1.z=500;pt2.z=500
+                pt1.z=offset;pt2.z=offset
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
                 dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,2, Geom::Vector3d.new(-dim_off,0,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                    pt1.z=500;pt2.z=500
+                    pt1.z=offset;pt2.z=offset
                     dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
             when 90
                 st_index, end_index, vector, lvector = 0,2, Geom::Vector3d.new(-dim_off,0,0), Geom::Vector3d.new(0,-dim_off*2,0)
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                pt1.z=500;pt2.z=500
+                pt1.z=offset;pt2.z=offset
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
                 dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,dim_off,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                    pt1.z=500;pt2.z=500
+                    pt1.z=offset;pt2.z=offset
                     dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
             when 180, -180
                 st_index, end_index, vector, lvector = 0,1, Geom::Vector3d.new(0,-dim_off,0), Geom::Vector3d.new(0,-dim_off*2,0)
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                pt1.z=500;pt2.z=500
+                pt1.z=offset;pt2.z=offset
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
                 dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,2, Geom::Vector3d.new(-dim_off,0,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                    pt1.z=500;pt2.z=500
+                    pt1.z=offset;pt2.z=offset
                     dim_l = add_dimension_pts(pt1, pt2, vector)	
                     dim_l.layer = layer_name
                 end
             when -90
                 st_index, end_index, vector, lvector = 1,3, Geom::Vector3d.new(dim_off,0,0), Geom::Vector3d.new(2*dim_off,0,0)
                 pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                pt1.z=500;pt2.z=500
+                pt1.z=offset;pt2.z=offset
                 mid_point = Geom.linear_combination( 0.5, pt1, 0.5, pt2 )
                 dim_l = add_dimension_pts(pt1, pt2, vector)
                 dim_l.layer = layer_name
                 if show_dimension
                     st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,-dim_off,0)
                     pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-                    pt1.z=500;pt2.z=500
+                    pt1.z=offset;pt2.z=offset
                     dim_l = add_dimension_pts(pt1, pt2, vector)
                     dim_l.layer = layer_name
                 end
@@ -245,55 +250,55 @@ module WorkingDrawing
 			if show_dimension
 				st_index, end_index, vector = 2,6, Geom::Vector3d.new(0,dim_off,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-				pt1.x=-500;pt2.x=-500
+				pt1.x=-offset;pt2.x=-offset
 				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
 
 			st_index, end_index, vector = 2,0, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-			pt1.x=-500;pt2.x=-500
+			pt1.x=-offset;pt2.x=-offset
 			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
         when 'right'
 			if show_dimension
 				st_index, end_index, vector = 1,5, Geom::Vector3d.new(0,-dim_off,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-				pt1.x=500;pt2.x=500
+				pt1.x=offset;pt2.x=offset
 				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
 			
 			st_index, end_index, vector = 1,3, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-			pt1.x=500;pt2.x=500
+			pt1.x=offset;pt2.x=offset
 			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
         when 'front'
 			
 			st_index, end_index, vector = 0,1, Geom::Vector3d.new(0,0,-dim_off)
 			pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-			pt1.y=-500;pt2.y=-500
+			pt1.y=-offset;pt2.y=-offset
 			dim_l = add_dimension_pts(pt1, pt2, vector)
 			dim_l.layer = layer_name
 			
 			if show_dimension
 				st_index, end_index, vector = 0,4, Geom::Vector3d.new(-dim_off,0,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-				pt1.y=-500;pt2.y=-500
+				pt1.y=-offset;pt2.y=-offset
 				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
         when 'back'
             st_index, end_index, vector = 2,3, Geom::Vector3d.new(0,0,-dim_off)
             pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-            pt1.y=500;pt2.y=500
+            pt1.y=offset;pt2.y=offset
             dim_l = add_dimension_pts(pt1, pt2, vector)
             dim_l.layer = layer_name
 			if show_dimension	
 				st_index, end_index, vector = 2,6, Geom::Vector3d.new(dim_off,0,0)
 				pt1, pt2 = TT::Bounds.point(comp.bounds, st_index), TT::Bounds.point(comp.bounds, end_index)
-				pt1.y=500;pt2.y=500
+				pt1.y=offset;pt2.y=offset
 				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
@@ -407,14 +412,15 @@ module WorkingDrawing
 #=end		
 		
         rows
-    end
+	end
 
-    def self.outline_drawing view, offset=500 #comp_h not needed
+    def self.outline_drawing view #comp_h not needed
 		if view == 'top'
 			comps 	= DP::get_top_visible_comps 
 		else
 			comps 	= DP::get_visible_comps view
 		end
+		offset = @@drawing_image_offset
 
 		view_comps = {}
 		if comps.empty?
@@ -541,37 +547,6 @@ module WorkingDrawing
         }
         return corners
     end
-	
-	def self.write_imageeeee(val)
-		view = Sketchup.active_model.active_view
-		if val == 'top'
-			@name = "Top View"
-			eye = [0, 0, 500]
-			target = [0, 0, 0]
-			up = [-0.006059714697060147, 0.9701603229993295, -0.2423885878824059]
-		elsif val == 'right'
-			@name = "Right View"
-			eye = [500, 0, 50]
-			target = [0, 0, 0]
-			up = [-1, 0, 0]
-		elsif val == 'front'
-			@name = "Front View"
-			eye = [0, -450, 70]
-			target = [0, 0, 0]
-			up = [0, 0, 1]
-		end
-		cam = Sketchup::Camera.new eye, target, up
-		view.camera = cam
-		keys = {
-		  :filename => "C:/Users/Decorpot-020/Desktop/Images/#{@name}.png",
-		  :width => view.vpwidth,
-		  :height => view.vpheight,
-		  :antialias => false,
-		  #:compression => 0.9,
-		  :transparent => true
-		}
-		view.write_image keys
-	end
 			
 	def self.check_xn check_comp, comp_a
 		comp_a.each { |comp|
@@ -597,23 +572,83 @@ module WorkingDrawing
 		adj_comps
 	end	
 
-	def self.get_working_image view
+	def self.get_offset view, comps
+		offset 	= 0
+		case view
+		when 'top'
+			comps.each {|comp|
+				z = comp.bounds.corner(4).z
+				offset = z if z > offset
+			}
+		when 'left'
+			comps.each {|comp|
+				x = comp.bounds.corner(1).x
+				offset = x if x > offset
+			}
+			offset = -offset
+		when 'right'
+			offset = 1000000
+			comps.each {|comp|
+				x = comp.bounds.corner(1).x
+				offset = x if x < offset
+			}
+		when 'front'
+			comps.each {|comp|
+				y = comp.bounds.corner(2).y
+				offset = y if y > offset
+			}
+			offset = -offset
+		when 'back'
+			offset = 1000000
+			comps.each {|comp|
+				y = comp.bounds.corner(0).y
+				offset = x if y < offset
+			}
+		end
+		offset
+	end
+
+	def self.get_working_image view, options
+		include_background_flag = true if options.include?('act_backgrd')
+		include_background_flag = true
+		if include_background_flag #options[act_backgrd] #check options of background image
+			if view == 'top'
+				comps 	= DP::get_top_visible_comps 
+			else
+				comps 	= DP::get_visible_comps view
+			end
+			@@drawing_image_offset = get_offset view, comps
+		else
+			@@drawing_image_offset = 500
+		end
+		return [] if comps.empty?
+
 		layers = Sketchup.active_model.layers
 		visible_layers = ['DP_outline_'+view, 'DP_dimension_'+view]
+		visible_layers << 'DP_Comp_layer' if include_background_flag
 		visible_layers << 'DP_lamination' if view=='top'
+		layers.each {|x| visible_layers << x.name if x.name.start_with?('72IMOS')}
 		comps = working_drawing view
-
-		return [] if comps.empty?
+		
+		if include_background_flag
+			visible_comps = DP::get_visible_comps view
+			layer_comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.layer.name=='DP_Comp_layer'}
+			layer_comps.each{|x| x.visible=false if !visible_comps.include?(x)}
+		end
+		
 		outpath = "C:/RioSTD/cache/"
 		end_format = ".jpg"
 		Dir::mkdir(outpath) unless Dir::exist?(outpath)
 		image_file_name = outpath+view+end_format
 
 		Sketchup.active_model.active_layer=visible_layers[1]
-		layers.each{|layer| 
-			layer.visible=false unless visible_layers.include?(layer.name)}
+		layers.each{|layer| layer.visible=false unless visible_layers.include?(layer.name)}
 		visible_layers.each{|l| Sketchup.active_model.layers[l].visible=true}
+
+		puts "visible_layers : #{visible_layers}"
+		visible_comps.each{|c| c.visible=true}
 		
+		#return
 		if view == "top"
 			@cPos = [0, 0, 0]
 			@cTarg = [0, 0, -1]
@@ -646,10 +681,14 @@ module WorkingDrawing
 			:compression => 0,
 			:transparent => true
 		}
+		Sketchup.active_model.active_view.camera.perspective = false
+		
 		#Sketchup.active_model.active_view.write_image keys
 		Sketchup.active_model.active_view.write_image image_file_name
 		#Sketchup.active_model.active_view.write_image outpath+"j"+view+".jpg"
-		
+		layer_comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.layer.name=='DP_Comp_layer'}
+		layer_comps.each{|x| x.visible=true}
+
 		layers.each{|layer| layer.visible=true}
 		return [comps, image_file_name]
 	end
