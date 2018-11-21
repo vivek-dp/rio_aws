@@ -14,7 +14,7 @@ module WorkingDrawing
     def self.initialize
         DP::create_layers
         @add_menu = false
-		add_lamination_menu
+		add_menu_items
     end
     
     def self.get_outline_pts comp, view, offset
@@ -55,42 +55,68 @@ module WorkingDrawing
     
     def self.set_lamination comp, value
 		return nil unless comp.valid?
-        dict_name = 'lamination_code'
-        key = 'lamination'
-        comp.set_attribute(dict_name, key, value)
+		visi_arr 	= DP::get_visible_sides comp
+        dict_name 	= :rio_atts
+		keys = ['left_lamination', 'right_lamination', 'top_lamination']
+		visi_arr.each_index{|i|
+			comp.set_attribute(dict_name, keys[i], value[i])
+		}
     end
 
-    def self.get_lamination comp
+    def self.get_lamination comp, key
 		return nil unless comp.valid?
-        dict_name = 'lamination_code'
-        key = 'lamination'
+        dict_name = :rio_atts
         lam_code = comp.get_attribute(dict_name, key)
         return lam_code
     end
     
-	def self.add_lamination_menu
+	def self.add_menu_items
         puts "add_lamination_menu"
         if (!@add_menu)
             UI.add_context_menu_handler do |popup|
                 sel = Sketchup.active_model.selection[0]
                 if sel.is_a?(Sketchup::ComponentInstance)
-                    lam_code = get_lamination sel
-                    lam_code = "" unless lam_code
-                    popup.add_item('Lamination Code') {
-                        prompts = ["Enter lamination code"]
-                        defaults = [lam_code]
-                        input = UI.inputbox(prompts, defaults, "Lamination code.")
-                        set_lamination sel, input[0] if input
-                    }
+                    #lam_code = get_lamination sel
+					#lam_code = "" unless lam_code
+					left, right, top = DP::get_visible_sides sel
+
+					#If selected component has atleast one visible side add lamination code to visible face
+					if left||right||top
+						popup.add_item('Lamination Code') {
+							prompts = []
+							defaults = []
+							if left
+								prompts << "Left  " 
+								defaults << (get_lamination sel, 'left_lamination')
+							end
+							if right 
+								prompts << "Right "
+								defaults << (get_lamination sel, 'right_lamination')
+							end
+							if top
+								prompts << "Top   "
+								defaults << (get_lamination sel, 'top_lamination')
+							end
+							if !prompts.empty?
+								#defaults = [lam_code]
+								input = UI.inputbox(prompts, defaults, "Lamination code.")
+								set_lamination sel, input if input
+							end
+						}
+					end
+
+					#Add Component to the selected component-------------------------------------------
                     popup.add_item('Add Rio component') {
                         prompts = ["Placement"]
                         defaults = ["Left"]
                         list = ["Left|Right|Top"]
                         input = UI.inputbox(prompts, defaults, list, "Lamination code.")
 
-                        DP::set_state 'comp-clicked:'+input[0] if input
+                        DP::set_state 'comp-clicked:'+input[0].downcase if input
                         RioAWSComponent::decor_import_comp
-                    }
+					}
+					
+					#If component Instance is a wall......This is deprecated....Wall should be a group
                     posn = sel.get_attribute :rio_atts, "position"
                     if posn
                         popup.add_item('Add Rio component') {
@@ -112,12 +138,13 @@ module WorkingDrawing
 	end
     
 	def self.add_dimension_pts pt1, pt2, vector
+		#puts "add_dimension_pts"
 		dim_l 	= Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
 		dim_l.material.color = 'red'
 		dim_l
 	end
 	
-    def self.add_comp_dimension comp, view='top', show_dimension=true
+    def self.add_comp_dimension comp,  view='top', lamination_pts=[], show_dimension=true
         return nil unless comp.valid?
         bounds = comp.bounds
         
@@ -184,12 +211,36 @@ module WorkingDrawing
                     dim_l.layer = layer_name
                 end
             end	
-            lam_code = get_lamination comp
-            text = Sketchup.active_model.entities.add_text lam_code, mid_point, lvector if lam_code && !lam_code.empty?
-			if text
-				text.layer = 'DP_lamination' 
-				text.material.color = 'blue'
+			#lam_code = get_lamination comp
+			#midpoint = comp.bounds.
+			if !lamination_pts.empty?
+				['left_lamination', 'right_lamination', 'top_lamination'].each {|lam_value|
+					lam_code = get_lamination comp, lam_value
+					case rotz
+					when 0
+						if lam_value.start_with?('left')
+							midpoint = lamination_pts[:left]
+							lvector = Geom::Vector3d.new(10, 0, 0)
+						elsif lam_value.start_with?('right')
+							midpoint = lamination_pts[:right]
+							lvector = Geom::Vector3d.new(-10, 0, 0)
+						else
+							midpoint = lamination_pts[:top]
+							lvector = Geom::Vector3d.new(0,10,0)
+						end
+					when 90
+					when 180, -180
+					when -90
+					end
+					puts "midpoint : #{midpoint}  : #{lam_code}  : #{lvector}" if lam_code && !lam_code.empty?
+					text = Sketchup.active_model.entities.add_text lam_code, mid_point, lvector if lam_code && !lam_code.empty?
+					if text
+						text.layer = 'DP_lamination' 
+						text.material.color = 'green'
+					end
+				}
 			end
+            
         when 'left'
 			if show_dimension
 				st_index, end_index, vector = 2,6, Geom::Vector3d.new(0,dim_off,0)
@@ -246,11 +297,13 @@ module WorkingDrawing
 				dim_l = add_dimension_pts(pt1, pt2, vector)
 				dim_l.layer = layer_name
 			end
-        end
+		end
+		Sketchup.active_model.layers[layer_name].visible=true
         
     end
     
-    def self.add_row_dimension row, view
+	def self.add_row_dimension row, view
+		puts "add_row_dimension"
         comp_names = []
 
         row.each{ |id|
@@ -265,7 +318,7 @@ module WorkingDrawing
         }
     end
     
-    def self.add_dimensions comp_h, view='top'
+	def self.add_dimensions comp_h, view='top'
         #outline_drawing comp_h, view
         #corners = get_corners view
         rows = get_comp_rows comp_h, view
@@ -279,9 +332,10 @@ module WorkingDrawing
         
         comp_h.each { |comp_details|
             comp_id = comp_details[0]
-            comp = DP::get_comp_pid comp_id
-            add_comp_dimension comp, view unless comp_h[comp_id][:row_elem]
-        }
+			comp = DP::get_comp_pid comp_id
+			puts comp_details
+            #add_comp_dimension comp, view, comp_h[comp_id][:lamination_pts]  unless comp_h[comp_id][:row_elem]
+		}
     end
     
     def self.get_comp_rows comp_h, view
@@ -326,14 +380,24 @@ module WorkingDrawing
 			adjs.each{|adj_comp|
 				row  = [cor]
 				curr = adj_comp
+				
 				#comp_h[cor][:adj].delete curr
 				comp_h[curr][:adj].delete cor
+				count = 0
 				while comp_h[curr][:type] == :double
+					count+=1
+					break if count == 10
 					row << curr
 					adj_next = comp_h[curr][:adj][0]
-					comp_h[adj_next][:adj].delete curr
-					comp_h[curr][:adj].delete adj_next
-					curr = adj_next
+					#puts "curr : #{curr} : #{comp_h[curr]} : #{comp_h[adj_next]} : #{adj_next}"
+					if adj_next
+						comp_h[adj_next][:adj].delete curr 
+						comp_h[curr][:adj].delete adj_next
+						curr = adj_next
+						#puts "curraaa : ---- #{curr}"
+					else
+						break if curr.nil?
+					end
 				end
 				row << curr
                 row.sort_by!{|r| comp=DP.get_comp_pid r; comp.transformation.origin.x}
@@ -346,20 +410,65 @@ module WorkingDrawing
     end
 
     def self.outline_drawing view, offset=500 #comp_h not needed
-        comps 	= DP::get_visible_comps view
+		if view == 'top'
+			comps 	= DP::get_top_visible_comps 
+		else
+			comps 	= DP::get_visible_comps view
+		end
+
+		view_comps = {}
+		if comps.empty?
+			puts "No component for the "+view+" View"
+			return view_comps
+		end
 		comp_h 	= DP::parse_components comps 
- 
+		count = 1
+		
+		
         comp_h.keys.each{|cid|
-            comp = DP::get_comp_pid cid
+			comp = DP::get_comp_pid cid
+			comp_name = "C#"+count.to_s
+			view_comps[comp_name] = comp
             next if comp.nil?
             pts = get_outline_pts comp, view, offset
 
+
             face = Sketchup.active_model.entities.add_face(pts)
             face.edges.each{|edge| edge.layer = 'DP_outline_'+view}
-            face.layer 	= 	'DP_outline_'+view
-            face.hidden	=	true
-        }
-        add_dimensions comp_h, view
+			face.layer 	= 	'DP_outline_'+view
+			coordinates = face.bounds.center
+			model 	= Sketchup.active_model
+			entities= model.entities
+			point 	= Geom::Point3d.new coordinates
+			text 	= entities.add_text comp_name, point
+			count 	+=1
+			
+			rotz = comp.transformation.rotz
+			puts "rotz : "
+			case rotz
+			when 0
+				lamination_pts = {	:left	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_FRONT_BOTTOM),
+									:right	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_BACK_BOTTOM),
+									:top	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_CENTER_CENTER)}
+			when 90
+				lamination_pts = {:left	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_BACK_BOTTOM),
+					:right	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_FRONT_BOTTOM),
+					:top	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_CENTER_CENTER)}
+			when -90
+				lamination_pts = {:left	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_FRONT_BOTTOM),
+					:right	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_BACK_BOTTOM),
+					:top	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_CENTER_CENTER)}
+			when 180, -180
+				lamination_pts = {	:left	=> TT::Bounds.point(face.bounds, TT::BB_RIGHT_CENTER_BOTTOM),
+					:right	=> TT::Bounds.point(face.bounds, TT::BB_LEFT_CENTER_BOTTOM),
+					:top	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_CENTER_CENTER)}
+			end
+			comp_h[cid][:lamination_pts] = lamination_pts
+			face.hidden	=	true
+		}
+		puts comp_h
+		add_dimensions comp_h, view
+		view_comps
     end
     
 	def self.get_layer_entities layer_name
@@ -397,8 +506,8 @@ module WorkingDrawing
         Sketchup.active_model.layers.add(layer_name) if Sketchup.active_model.layers[layer_name].nil?
 		delete_layer_entities layer_name
 		
-        outline_drawing view
-        puts "done"
+        comps = outline_drawing view
+        return comps
 	end
     
     def self.get_all_views
@@ -463,10 +572,6 @@ module WorkingDrawing
 		}
 		view.write_image keys
 	end
-	
-	def self.get_rio_components
-		Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute('rio_params', 'rio_comp')=='true'}
-	end
 			
 	def self.check_xn check_comp, comp_a
 		comp_a.each { |comp|
@@ -478,7 +583,7 @@ module WorkingDrawing
 	end
 			
 	def self.scan_components
-		comp_a = get_rio_components
+		comp_a = DP::get_rio_components
 		adj_comps = []
 		unless comp_a.empty?	
 			comp_a.each{|comp|
@@ -491,6 +596,63 @@ module WorkingDrawing
 		
 		adj_comps
 	end	
+
+	def self.get_working_image view
+		layers = Sketchup.active_model.layers
+		visible_layers = ['DP_outline_'+view, 'DP_dimension_'+view]
+		visible_layers << 'DP_lamination' if view=='top'
+		comps = working_drawing view
+
+		return [] if comps.empty?
+		outpath = "C:/RioSTD/cache/"
+		end_format = ".jpg"
+		Dir::mkdir(outpath) unless Dir::exist?(outpath)
+		image_file_name = outpath+view+end_format
+
+		Sketchup.active_model.active_layer=visible_layers[1]
+		layers.each{|layer| 
+			layer.visible=false unless visible_layers.include?(layer.name)}
+		visible_layers.each{|l| Sketchup.active_model.layers[l].visible=true}
+		
+		if view == "top"
+			@cPos = [0, 0, 0]
+			@cTarg = [0, 0, -1]
+			@cUp = [0, 1, 0]
+		elsif view == "front"
+			@cPos = [0, 0, 0]
+			@cTarg = [0, 1, 0]
+			@cUp = [0, 0, 1]
+		elsif view == "right"
+			@cPos = [0, 0, 0]
+			@cTarg = [1, 0, 0]
+			@cUp = [0, 0, 1]
+		elsif view == "left"
+			@cPos = [0, 0, 0]
+			@cTarg = [-1, 0, 0]
+			@cUp = [0, 0, 1]
+		elsif view == "back"
+			@cPos = [0, 0, 0]
+			@cTarg = [0, -1, 0]
+			@cUp = [0, 0, 1]
+		end
+		
+		Sketchup.active_model.active_view.camera.set @cPos, @cTarg, @cUp
+		Sketchup.active_model.active_view.zoom_extents
+		keys = {
+			:filename => image_file_name,
+			:width => 1920,
+			:height => 1080,
+			:antialias => true,
+			:compression => 0,
+			:transparent => true
+		}
+		#Sketchup.active_model.active_view.write_image keys
+		Sketchup.active_model.active_view.write_image image_file_name
+		#Sketchup.active_model.active_view.write_image outpath+"j"+view+".jpg"
+		
+		layers.each{|layer| layer.visible=true}
+		return [comps, image_file_name]
+	end
 	
 	def self.export_working_drawing
 		adj_comps = scan_components
@@ -501,69 +663,24 @@ module WorkingDrawing
 			return false
 		end
 		viloop = []
-		views_to_process = ["Top","Front","Right","Left","Back"]
+		views_to_process = ["top","front","right","left","back"]
 		#views_to_process = ["Top"]
-		end_format = ".jpg"
+		
 		if Sketchup.active_model.title != ""
 			@title = Sketchup.active_model.title
 		else
 			@title = "Untitled"
 		end
 
-		outpath = "C:/Users/Decorpot-020/Desktop/imgexport/"
+		outpath = "C:/RioSTD/cache/"
+		Dir::mkdir(outpath) unless Dir::exist?(outpath)
 	
 
 		views_to_process.each {|vi|
 			viloop.push(vi)
 			
 			view = vi.downcase
-			layers = Sketchup.active_model.layers
-			visible_layers = ['DP_outline_'+view, 'DP_dimension_'+view]
-			visible_layers << 'DP_lamination' if view=='top'
-			working_drawing view
-
-			Sketchup.active_model.active_layer=visible_layers[1]
-			layers.each{|layer| 
-				layer.visible=false unless visible_layers.include?(layer.name)}
-			visible_layers.each{|l| Sketchup.active_model.layers[l].visible=true}
-			
-			if vi == "Top"
-				@cPos = [0, 0, 0]
-				@cTarg = [0, 0, -1]
-				@cUp = [0, 1, 0]
-			elsif vi == "Front"
-				@cPos = [0, 0, 0]
-				@cTarg = [0, 1, 0]
-				@cUp = [0, 0, 1]
-			elsif vi == "Right"
-				@cPos = [0, 0, 0]
-				@cTarg = [-1, 0, 0]
-				@cUp = [0, 0, 1]
-			elsif vi == "Left"
-				@cPos = [0, 0, 0]
-				@cTarg = [1, 0, 0]
-				@cUp = [0, 0, 1]
-			elsif vi == "Back"
-				@cPos = [0, 0, 0]
-				@cTarg = [0, -1, 0]
-				@cUp = [0, 0, 1]
-			end
-			
-			Sketchup.active_model.active_view.camera.set @cPos, @cTarg, @cUp
-			Sketchup.active_model.active_view.zoom_extents
-			keys = {
-				:filename => outpath+vi+end_format,
-				:width => 1920,
-				:height => 1080,
-				:antialias => true,
-				:compression => 0,
-				:transparent => true
-			}
-			#Sketchup.active_model.active_view.write_image keys
-			Sketchup.active_model.active_view.write_image outpath+vi+end_format
-			#Sketchup.active_model.active_view.write_image outpath+"j"+view+".jpg"
-			
-			layers.each{|layer| layer.visible=true}
+			get_working_image view
 		}
 
 		FileUtils.cd(outpath)

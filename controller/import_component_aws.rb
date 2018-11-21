@@ -103,18 +103,22 @@ module RioAWSComponent
 			self.place_Defcomponent(val)
 		}
 	end #decor_import_comp
-	
+    
+    #Check if set_attribute to definition is right
 	def self.place_Defcomponent(val)
 		puts "place_Defcomponent : val : #{val}"
         
         auto_placement = false
-		#target_path = RioAwsDownload::download_skp val
+        #target_path = RioAwsDownload::download_skp val
+        
+        prev_active_layer = Sketchup.active_model.active_layer.name
+        Sketchup.active_model.active_layer='DP_Comp_layer'
         target_path = val.split('.skp')[0]+'.skp' 
 		@model = Sketchup::active_model
 		puts "target_path : #{target_path}"
 		cdef = @model.definitions.load(target_path)
 		
-		dict_name   = 'rio_params'
+		dict_name   = :rio_atts
 		key         = 'rio_comp'
         cdef.set_attribute(dict_name, key, 'true')
         auto_mode = DP::get_auto_mode
@@ -241,15 +245,17 @@ module RioAWSComponent
                         end
                     end
 
-                    puts "inst : #{inst}"
-                    comp_bound_check = DP::check_room_bounds inst
-                    if comp_bound_check == false
-                        UI.messagebox("Component placed outside room bounds")
+                    puts "inst : #{inst} : #{tr} : #{trans}"
+                    if inst
+                        comp_bound_check = DP::check_room_bounds inst
+                        if comp_bound_check == false
+                            UI.messagebox("Component placed outside room bounds")
+                        end
+                        Sketchup.active_model.selection.add inst
                     end
-                    Sketchup.active_model.selection.add inst
                 end
             end
-            if auto_mode == false
+            if auto_mode != true
                 DP::set_state false
             else
                 Sketchup.active_model.selection
@@ -257,6 +263,7 @@ module RioAWSComponent
         else
             placecomp = @model.place_component cdef
         end
+        Sketchup.active_model.active_layer=prev_active_layer
 	end #place_Defcomponent
 	
 end #RioAWSComponent
