@@ -19,4 +19,4 @@ dialog.add_action_callback("loadmaincategory"){|a, b|
 
 def check_component_position region, component
 	
-end
+end 

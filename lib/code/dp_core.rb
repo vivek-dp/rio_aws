@@ -3,7 +3,7 @@
 #Decorpot Sketchup Core library
 #
 #-----------------------------------------------
-
+require 'csv'
 
 module DP
 	def self.mod
@@ -594,7 +594,7 @@ module DP
 
 		model 		= Sketchup.active_model
 
-		files 		= Dir.glob(dir_path)
+		files 		= Dir.glob(dir_path+'*.dwg')
 		files.each { |dwg_path|
 			res 		= model.import dwg_path, false
 
@@ -608,6 +608,35 @@ module DP
 
 			es.each{|x| es.erase_entities x }
 		}
+		files 		= Dir.glob(dir_path+'*.skb')
+		files.each {|file_name|
+			File.delete(file_name)
+		}
+	end
+
+	#Input should be path of the downloaded carcase and shutter
+	#Return will be a definition created using that
+	def self.create_carcass_definition carcase_path, shutter_path
+		model 		= Sketchup.active_model
+		carcase_def = model.definitions.load(carcase_path)
+		shutter_def	= model.definitions.load(shutter_path)
+
+		carcase_code= File.basename(carcase_path, '.skp').split('_')[0]
+		shutter_code= File.basename(shutter_path, '.skp')
+		defn_name	= carcase_code+'_'+shutter_code
+
+		model 		= Sketchup.active_model
+		definitions = model.definitions
+		defn		= definitions.add defn_name
+		
+		trans 		= Geom::Transformation.new 
+		shut_inst 	= defn.entities.add_instance(shutter_def, trans)
+		y_offset	= shut_inst.bounds.height
+		trans 		= Geom::Transformation.new([0,y_offset,0]) 
+		ccase_inst  = defn.entities.add_instance(carcase_def, trans)
+
+		defn.set_attribute(:rio_atts, 'shutter_code', shutter_code)
+		defn
 	end
 
 	def self.find_adjacent_comps comps, comp
@@ -617,7 +646,6 @@ module DP
 			xn = comp.bounds.intersect item.bounds
 			if ((xn.width + xn.depth + xn.height) != 0)
 				adj_comps << item
-				
 			end
 		}
 		adj_comps
