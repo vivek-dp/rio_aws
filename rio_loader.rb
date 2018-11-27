@@ -1,40 +1,32 @@
-module RIO
+SKETCHUP_CONSOLE.show
 
-	
-end
+if defined?(RIO_ROOT_PATH).to_s != 'constant'
 
-SUPPORT_PATH 	= File.join(File.dirname(__FILE__))
-install_path 	= File.join(SUPPORT_PATH, 'install')
+	RIO_ROOT_PATH	= File.join(File.dirname(__FILE__))
+	install_path 	= File.join(RIO_ROOT_PATH, 'install')
+	puts RIO_ROOT_PATH
 
-json_file 		= File.read('E:\Rio_install\install\file_list_schema.json');
-file_list_h		= JSON.parse(json_file)
-flist			= []
-file_list_h.keys.each{ |key|
-	#Change this method to recursively get ruby files
-	first_key = file_list_h[key][0]	
-	if first_key.is_a?(Array)
-		file_list_h[key].each{ |fname|
-			file_name = File.join(SUPPORT_PATH, key, fname)
-			flist << file_name
-		}
-	else
-		file_list_h[key].each{|subkey| 
-			if subkey.is_a?(String)
-				file_name	= File.join(SUPPORT_PATH,key,subkey) #For files inside subfolders
+	json_file 		= File.read('settings/file_list_schema.json');
+	file_list_h		= JSON.parse(json_file)
+	flist			= []
+	file_list_h.keys.each { |key|
+		#Change this method to recursively get ruby files
+		value = file_list_h[key]
+		if value.is_a?(Array)
+			file_list_h[key].each{ |fname|
+				file_name = File.join(RIO_ROOT_PATH, key, fname)
 				flist << file_name
-			else
-				subpath = subkey.keys[0]
-				subkey[subpath].each{|fname|
-					file_name = File.join(SUPPORT_PATH, key, fname)
+			}
+		else
+			value.keys.each{|subkey| 
+				sub_folder = value[subkey]
+				sub_folder.each{|fname|
+					file_name = File.join(RIO_ROOT_PATH, key, subkey, fname)
 					flist << file_name
 				}
-			end
-		}
-	end
-}
 
-RIO_ROOT ||= 'C:\RioSTD'
-flist.each{|file_name|
-	Sketchup.load(File.join(RIO_ROOT, file_name))
-}
-
+			}
+		end
+	}
+	#file_loaded?
+end

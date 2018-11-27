@@ -1,0 +1,20 @@
+{
+"controller": [	 
+					"create_wall.rb", 
+					"load_toolbar.rb", 
+					"import_component_aws.rb", 
+					"dynamic_configuration.rb", 
+					"export_report.rb", 
+					"working_drawing.rb"],
+"lib":{
+	"code":["aws_core.rb", 
+			"aws_database.rb",
+			"aws_downloader.rb",
+			"dp_core.rb",
+			"tt_bounds.rb",
+			"tt_core.rb"]
+	},
+"views":[	
+	"rio_main_view.rb"
+	]
+}

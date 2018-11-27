@@ -429,6 +429,7 @@ module DP
 
 	def self.check_room_bounds comp
 		Sketchup.active_model.selection.clear
+		Sketchup.activ_model.start_operation('check_room_bounds')
 		if comp.nil?
 			puts "Check room bounds : Comp is nil" 
 			return true	
@@ -447,6 +448,7 @@ module DP
 			end
 		end
 		temp_group.explode
+		Sketchup.active_model.abort_operation
 		return flag
 	end
     
@@ -595,6 +597,7 @@ module DP
 		model 		= Sketchup.active_model
 
 		files 		= Dir.glob(dir_path+'*.dwg')
+		#files 		= Dir.glob('#{dir_path}/**/'+'*.DWG')
 		files.each { |dwg_path|
 			res 		= model.import dwg_path, false
 
@@ -603,27 +606,31 @@ module DP
 			Sketchup.active_model.materials.purge_unused
 			Sketchup.active_model.styles.purge_unused
 
-			skp_path 	= dwg_path.split('.')[0]+'.skp'
+			skp_path 		= dwg_path.split('.')[0]+'.skp'
+			image_file_name = dwg_path.split('.')[0]+'.jpg'
+			skb_path 		= dwg_path.split('.')[0]+'.skb'
 			Sketchup.active_model.save(skp_path)
 
+			Sketchup.active_model.active_view.zoom_extents
+			Sketchup.send_action("viewIso:")
+			Sketchup.active_model.active_view.write_image image_file_name
+
 			es.each{|x| es.erase_entities x }
+			File.delete(skb_path) if File.exists(skb_path)
 		}
-		files 		= Dir.glob(dir_path+'*.skb')
-		files.each {|file_name|
-			File.delete(file_name)
-		}
+		return files.length
 	end
 
-	#Input should be path of the downloaded carcase and shutter
+	#Input should be path of the downloaded carcass and shutter
 	#Return will be a definition created using that
-	def self.create_carcass_definition carcase_path, shutter_path
+	def self.create_carcass_definition carcass_path, shutter_path
 		model 		= Sketchup.active_model
-		carcase_def = model.definitions.load(carcase_path)
+		carcass_def = model.definitions.load(carcass_path)
 		shutter_def	= model.definitions.load(shutter_path)
 
-		carcase_code= File.basename(carcase_path, '.skp').split('_')[0]
+		carcass_code= File.basename(carcass_path, '.skp').split('_')[0]
 		shutter_code= File.basename(shutter_path, '.skp')
-		defn_name	= carcase_code+'_'+shutter_code
+		defn_name	= carcass_code+'_'+shutter_code
 
 		model 		= Sketchup.active_model
 		definitions = model.definitions
@@ -633,7 +640,7 @@ module DP
 		shut_inst 	= defn.entities.add_instance(shutter_def, trans)
 		y_offset	= shut_inst.bounds.height
 		trans 		= Geom::Transformation.new([0,y_offset,0]) 
-		ccase_inst  = defn.entities.add_instance(carcase_def, trans)
+		ccass_inst  = defn.entities.add_instance(carcass_def, trans)
 
 		defn.set_attribute(:rio_atts, 'shutter_code', shutter_code)
 		defn
@@ -667,7 +674,6 @@ module DP
 		(0..7).each{|x| comp_pts << comp.bounds.corner(x).to_s}
 		case rotz
 		when 0
-			puts "0....."
 			right_pts 	= [comp_pts[0],	comp_pts[2], comp_pts[4], comp_pts[6]]
 			left_pts	= [comp_pts[1],	comp_pts[3], comp_pts[5], comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
@@ -681,7 +687,6 @@ module DP
 				top_view 	= false if (xn_pts&top_pts).length > 2
 			}
 		when 90
-			puts "90"
 			right_pts 	= [comp_pts[0],comp_pts[1],comp_pts[4],comp_pts[5]]
 			left_pts	= [comp_pts[2],comp_pts[3],comp_pts[6],comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
@@ -708,7 +713,6 @@ module DP
 				top_view 	= false if (xn_pts&top_pts).length > 2
 			}
 		when -90
-			puts "-90"
 			left_pts 	= [comp_pts[0],comp_pts[1],comp_pts[4],comp_pts[5]]
 			right_pts	= [comp_pts[2],comp_pts[3],comp_pts[6],comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
