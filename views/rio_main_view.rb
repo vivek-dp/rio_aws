@@ -63,8 +63,9 @@ module Decor_Standards
 
 		}
 
-		$rio_dialog.add_action_callback("submitval"){|i, j|
-			creat_wall = self.creating_wall(j)
+		$rio_dialog.add_action_callback("submitval"){|dialog, params|
+			input = JSON.parse(params)
+			DP::create_wall input
 			js_done = "hideLoad(1)"
 			$rio_dialog.execute_script(js_done)
 		}

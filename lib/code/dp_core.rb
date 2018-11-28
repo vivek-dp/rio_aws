@@ -452,25 +452,27 @@ module DP
 		return flag
 	end
     
-    def self.create_wall inp_h
+	def self.create_wall inp_h
         mod 	= Sketchup.active_model
         zvector	= Geom::Vector3d.new(0, 0, 1)
 
         wwidth 	= inp_h['wall1'].to_f.mm.to_inch
         wlength = inp_h['wall2'].to_f.mm.to_inch
         wheight = inp_h['wheight'].to_f.mm.to_inch
-        thick	= inp_h['wthick'].to_f.mm.to_inch
+        #thick	= inp_h['wthick'].to_f.mm.to_inch
         active_layer = Sketchup.active_model.active_layer.name
 		pts = [Geom::Point3d.new(0,0,0), Geom::Point3d.new(wwidth,0,0), Geom::Point3d.new(wwidth,wlength,0), Geom::Point3d.new(0,wlength,0)]
+
 		prev_active_layer = Sketchup.active_model.active_layer.name
         Sketchup.active_model.active_layer='DP_Floor'
         floor_face = Sketchup.active_model.entities.add_face(pts)
 		floor_face.set_attribute :rio_atts, 'position', 'floor'
-		fcolor    			= Sketchup::Color.new "825840"
+		fcolor    			= Sketchup::Color.new "FF335B"
 		floor_face.material 		= fcolor
         floor_face.back_material 	= fcolor
 
-		fcolor    			= Sketchup::Color.new "4e90ec"
+		Sketchup.active_model.active_layer='DP_Wall'
+		fcolor    			= Sketchup::Color.new "339CFF"
         floor_face.edges.each{ |edge|
             verts 	= edge.vertices
             pt1   	= verts[0]
@@ -566,7 +568,7 @@ module DP
             gp = mod.entities.add_group(face)
             gp.set_attribute :rio_atts, 'position', position 
 		}
-		Sketchup.active_model.active_layer prev_active_layer
+		Sketchup.active_model.active_layer=prev_active_layer
     end
     
     def self.get_position edge, face

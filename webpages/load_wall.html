@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script type="text/javascript" src="load_wall.js"></script>
+</head>
+<body>
+	<div class="ui equal width form right-pad">
+		<div class="ui two column grid">
+			<div class="column">
+				<img class="ui small image" src="../controller/icons/walls.png">
+			</div>
+			<div class="column">
+				<div class="ui form">
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label" data-tooltip="Length of Wall 1" data-position="left center">Wall 1:</div>	
+							<input type="text" class="allownumeric" id="wall1" value="2000">
+						</div>
+					</div>
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label" data-tooltip="Length of Wall 2" data-position="left center">Wall 2:</div>
+							<input type="text" class="allownumeric" id="wall2" value=3000>
+						</div>
+					</div>
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label" data-tooltip="Height of Wall" data-position="left center">Height:</div>
+							<input type="text" class="allownumeric" id="wheight" value=3000>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="ui grid">
+		<div class="eight wide column">
+			<div class="ui form">
+				<div class="field">
+					<div class="ui checkbox">
+						<input type="checkbox" name="door" id="checkdoor" onclick="checkdor()">
+						<label><b style="color: gray;">Door</b></label>
+					</div>
+				</div>
+
+				<div id="doorblock" style="display:none; margin-top: 1em;">
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">Location :</div>
+							<select class="ui dropdown" id="door_view" style="height: 50px;">
+								<option value="0">Select...</option>
+								<option value="back">Back</option>
+								<option value="front">Front</option>
+								<option value="left">Left</option>
+								<option value="right">Right</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">From Left:</div>
+							<input type="text" id="door_position" class="allownumeric">
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">Height:</div>
+							<input type="text" id="door_height" class="allownumeric" onblur="checkheight(this.value)">
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+  						<div class="ui label">Length:</div>
+  						<input type="text" id="door_length" class="allownumeric">
+  					</div>
+					</div>
+
+				</div>
+			</div>
+		</div>
+
+		<div class="eight wide column">
+			<div class="ui form">
+				<div class="field">
+					<div class="ui checkbox">
+						<input type="checkbox" name="window" id="checkwindow" onclick="checkwin()">
+						<label><b style="color: gray;">Window</b></label>
+					</div>
+				</div>
+
+				<div id="winblock" style="display:none; margin-top: 1em;">
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">Location :</div>
+							<select class="ui fluid dropdown" id="window_view" style="height: 50px;">
+								<option value="0">Select...</option>
+								<option value="back">Back</option>
+								<option value="front">Front</option>
+								<option value="left">Left</option>
+								<option value="right">Right</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">From Left:</div>
+							<input type="text" id="win_lftposition" class="allownumeric">
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">From Bottom:</div>
+							<input type="text" id="win_btmposition" class="allownumeric">
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">Height:</div>
+							<input type="text" id="win_height" class="allownumeric">
+						</div>
+					</div>
+
+					<div class="field">
+						<div class="ui labeled input">
+							<div class="ui label">Length:</div>
+							<input type="text" id="win_length" class="allownumeric">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="sixteen wide column">
+		<div style="text-align: left;">
+			<span style="color: red;">*<u><b>Note:</b></u> All values are mm.</span>
+		</div>
+		<div style="text-align: center;">
+			<button class="ui positive button" onclick="SubmitVal()">Create</button>
+		</div>
+	</div>
+	<script>
+		$('.ui.dropdown').dropdown();
+	</script>
+</body>
+</html>

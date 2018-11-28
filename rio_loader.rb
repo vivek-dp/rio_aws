@@ -1,5 +1,7 @@
 SKETCHUP_CONSOLE.show
 
+puts "Rio loader"
+
 if defined?(RIO_ROOT_PATH).to_s != 'constant'
 
 	RIO_ROOT_PATH	= File.join(File.dirname(__FILE__))
@@ -30,3 +32,10 @@ if defined?(RIO_ROOT_PATH).to_s != 'constant'
 	}
 	#file_loaded?
 end
+
+#-----------------------------------------Add Pre start processes here--------------------
+#
+DP::create_layers
+WorkingDrawing::initialize
+#
+#-----------------------------------------------------------------------------------------
