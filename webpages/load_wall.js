@@ -96,7 +96,7 @@ function SubmitVal(){
 		json["windows"] = json2
 	}
 	var str = JSON.stringify(json);
-	document.getElementById("load").style.display = "block";
+	//document.getElementById("load").style.display = "block";
 	// sketchup.submitval(str)
-	setTimeout(function() {window.location = 'skp:submitval@'+ str;}, 1000);
+	setTimeout(function() {window.location = 'skp:submitval@'+ str;}, 0);
 }

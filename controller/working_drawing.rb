@@ -50,7 +50,9 @@ module WorkingDrawing
 		}
         face_pts = []
         hit_pts.each{|pt| 
-            face_pts << pt.offset(vector, offset)
+			pt = pt.offset(vector, offset)
+			#pt.z += 1000.mm
+			face_pts << pt
         }
         face_pts
     end
@@ -73,7 +75,7 @@ module WorkingDrawing
     end
     
 	def self.add_menu_items
-        puts "add_lamination_menu"
+        #puts "add_lamination_menu"
         if (!@add_menu)
             UI.add_context_menu_handler do |popup|
                 sel = Sketchup.active_model.selection[0]
@@ -141,12 +143,87 @@ module WorkingDrawing
     
 	def self.add_dimension_pts pt1, pt2, vector
 		#puts "add_dimension_pts"
+		#pt1.z += 1000.mm
+		#pt2.z += 1000.mm
 		dim_l 	= Sketchup.active_model.entities.add_dimension_linear(pt1, pt2, vector)
 		dim_l.material.color = 'red'
 		dim_l
 	end
-	
-    def self.add_comp_dimension comp,  view='top', lamination_pts=[], show_dimension=true
+    
+    def self.get_comp_rows comp_h, view
+        corners = []
+		singles = []
+		comp_h.each_pair{|x, y| 
+			if y[:type]==:corner
+				corners<<x 
+			elsif y[:type]==:single 
+				singles<<x
+			end
+		}
+		rows = []
+
+        corners.each{|id| comp_h[id][:type]=:corner}
+		corners.each{|cor|
+			adjs = comp_h[cor][:adj]
+			row = []
+			adjs.each{|adj_comp|
+				row  = [cor]
+				curr = adj_comp
+				#comp_h[cor][:adj].delete curr
+				comp_h[curr][:adj].delete cor
+				while comp_h[curr][:type] == :double
+					row << curr
+					adj_next = comp_h[curr][:adj][0]
+					comp_h[adj_next][:adj].delete curr
+					comp_h[curr][:adj].delete adj_next
+					curr = adj_next
+				end
+				row << curr
+                row.sort_by!{|r| comp=DP.get_comp_pid r; comp.transformation.origin.x}
+				rows << row
+			}
+        } 
+		row_elems = rows.flatten
+#=begin		
+		singles.reject!{|x| row_elems.include?(x)}
+		singles.each{|cor|
+			adjs = comp_h[cor][:adj]
+			row = []
+			adjs.each{|adj_comp|
+				row  = [cor]
+				curr = adj_comp
+				
+				#comp_h[cor][:adj].delete curr
+				comp_h[curr][:adj].delete cor
+				count = 0
+				while comp_h[curr][:type] == :double
+					count+=1
+					break if count == 10
+					row << curr
+					adj_next = comp_h[curr][:adj][0]
+					#puts "curr : #{curr} : #{comp_h[curr]} : #{comp_h[adj_next]} : #{adj_next}"
+					if adj_next
+						comp_h[adj_next][:adj].delete curr 
+						comp_h[curr][:adj].delete adj_next
+						curr = adj_next
+						#puts "curraaa : ---- #{curr}"
+					else
+						break if curr.nil?
+					end
+				end
+				row << curr
+                row.sort_by!{|r| comp=DP.get_comp_pid r; comp.transformation.origin.x}
+				rows << row
+			}
+        } 
+#=end		
+		
+        rows
+	end
+
+	def self.add_comp_dimension comp,  view='top', lamination_pts=[], show_dimension=true
+		puts "comp dim : #{comp}"
+		sel.add comp
         return nil unless comp.valid?
         bounds = comp.bounds
         
@@ -155,9 +232,9 @@ module WorkingDrawing
 		
 		offset = @@drawing_image_offset
 
+		rotz = comp.transformation.rotz
         case view
         when 'top'   
-            rotz = comp.transformation.rotz
             case rotz
             when 0
                 st_index, end_index, vector, lvector = 2,3, Geom::Vector3d.new(0,dim_off,0), Geom::Vector3d.new(0,2*dim_off,0)
@@ -237,7 +314,7 @@ module WorkingDrawing
 					when 180, -180
 					when -90
 					end
-					puts "midpoint : #{midpoint}  : #{lam_code}  : #{lvector}" if lam_code && !lam_code.empty?
+					#puts "midpoint : #{midpoint}  : #{lam_code}  : #{lvector}" if lam_code && !lam_code.empty?
 					text = Sketchup.active_model.entities.add_text lam_code, mid_point, lvector if lam_code && !lam_code.empty?
 					if text
 						text.layer = 'DP_lamination' 
@@ -308,7 +385,7 @@ module WorkingDrawing
     end
     
 	def self.add_row_dimension row, view
-		puts "add_row_dimension"
+		#puts "add_row_dimension"
         comp_names = []
 
         row.each{ |id|
@@ -320,100 +397,32 @@ module WorkingDrawing
                 comp_names << defn_name
                 add_comp_dimension comp, view
             end
-        }
+		}
+		return comp_names
     end
     
 	def self.add_dimensions comp_h, view='top'
         #outline_drawing comp_h, view
         #corners = get_corners view
         rows = get_comp_rows comp_h, view
-        row_elems = rows.flatten.uniq
+		row_elems = rows.flatten.uniq
+		comp_names = []
         comp_h.keys.each { |id|
             comp_h[id][:row_elem] = true if row_elems.include?(id)
         }
         rows.each{|row|
-            add_row_dimension row, view
+            comp_names << (add_row_dimension row, view)
         }
-        
+		comp_names.flatten!
+		
         comp_h.each { |comp_details|
             comp_id = comp_details[0]
 			comp = DP::get_comp_pid comp_id
-			puts comp_details
-            #add_comp_dimension comp, view, comp_h[comp_id][:lamination_pts]  unless comp_h[comp_id][:row_elem]
+			#puts comp_details
+            add_comp_dimension comp, view, comp_h[comp_id][:lamination_pts]  unless comp_h[comp_id][:row_elem]
 		}
-    end
-    
-    def self.get_comp_rows comp_h, view
-        corners = []
-		singles = []
-		comp_h.each_pair{|x, y| 
-			if y[:type]==:corner
-				corners<<x 
-			elsif y[:type]==:single 
-				singles<<x
-			end
-		}
-		rows = []
-
-        corners.each{|id| comp_h[id][:type]=:corner}
-		corners.each{|cor|
-			adjs = comp_h[cor][:adj]
-			row = []
-			adjs.each{|adj_comp|
-				row  = [cor]
-				curr = adj_comp
-				#comp_h[cor][:adj].delete curr
-				comp_h[curr][:adj].delete cor
-				while comp_h[curr][:type] == :double
-					row << curr
-					adj_next = comp_h[curr][:adj][0]
-					comp_h[adj_next][:adj].delete curr
-					comp_h[curr][:adj].delete adj_next
-					curr = adj_next
-				end
-				row << curr
-                row.sort_by!{|r| comp=DP.get_comp_pid r; comp.transformation.origin.x}
-				rows << row
-			}
-        } 
-		row_elems = rows.flatten
-#=begin		
-		singles.reject!{|x| row_elems.include?(x)}
-		singles.each{|cor|
-			adjs = comp_h[cor][:adj]
-			row = []
-			adjs.each{|adj_comp|
-				row  = [cor]
-				curr = adj_comp
-				
-				#comp_h[cor][:adj].delete curr
-				comp_h[curr][:adj].delete cor
-				count = 0
-				while comp_h[curr][:type] == :double
-					count+=1
-					break if count == 10
-					row << curr
-					adj_next = comp_h[curr][:adj][0]
-					#puts "curr : #{curr} : #{comp_h[curr]} : #{comp_h[adj_next]} : #{adj_next}"
-					if adj_next
-						comp_h[adj_next][:adj].delete curr 
-						comp_h[curr][:adj].delete adj_next
-						curr = adj_next
-						#puts "curraaa : ---- #{curr}"
-					else
-						break if curr.nil?
-					end
-				end
-				row << curr
-                row.sort_by!{|r| comp=DP.get_comp_pid r; comp.transformation.origin.x}
-				rows << row
-			}
-        } 
-#=end		
-		
-        rows
 	end
-
+	
     def self.outline_drawing view #comp_h not needed
 		if view == 'top'
 			comps 	= DP::get_top_visible_comps 
@@ -446,11 +455,11 @@ module WorkingDrawing
 			model 	= Sketchup.active_model
 			entities= model.entities
 			point 	= Geom::Point3d.new coordinates
+			#point.z += 1000.mm
 			text 	= entities.add_text comp_name, point
 			count 	+=1
 			
 			rotz = comp.transformation.rotz
-			puts "rotz : "
 			case rotz
 			when 0
 				lamination_pts = {	:left	=> TT::Bounds.point(face.bounds, TT::BB_CENTER_FRONT_BOTTOM),
@@ -472,25 +481,9 @@ module WorkingDrawing
 			comp_h[cid][:lamination_pts] = lamination_pts
 			face.hidden	=	true
 		}
-		puts comp_h
+		#puts comp_h
 		add_dimensions comp_h, view
 		view_comps
-    end
-    
-	def self.get_layer_entities layer_name
-		model = Sketchup::active_model
-		ents = model.entities
-		layer_ents = []
-		layer_ents = ents.select{|x| x.layer.name==layer_name}
-	end
-	
-	def self.delete_layer_entities layer_name
-		layer_ents = get_layer_entities layer_name
-		layer_ents.each{|ent| 
-			unless ent.deleted?
-				Sketchup::active_model.entities.erase_entities ent
-			end
-		}
 	end
 	
     #Create the working drawing for the specific view
@@ -514,6 +507,22 @@ module WorkingDrawing
 		
         comps = outline_drawing view
         return comps
+	end
+    
+	def self.get_layer_entities layer_name
+		model = Sketchup::active_model
+		ents = model.entities
+		layer_ents = []
+		layer_ents = ents.select{|x| x.layer.name==layer_name}
+	end
+	
+	def self.delete_layer_entities layer_name
+		layer_ents = get_layer_entities layer_name
+		layer_ents.each{|ent| 
+			unless ent.deleted?
+				Sketchup::active_model.entities.erase_entities ent
+			end
+		}
 	end
     
     def self.get_all_views
@@ -567,7 +576,7 @@ module WorkingDrawing
 			}
 			return adj_comps
 		end
-		puts "adj_comps : #{adj_comps}"
+		#puts "adj_comps : #{adj_comps}"
 		
 		adj_comps
 	end	
@@ -602,15 +611,16 @@ module WorkingDrawing
 			offset = 1000000
 			comps.each {|comp|
 				y = comp.bounds.corner(0).y
-				offset = x if y < offset
+				offset = y if y < offset
 			}
 		end
 		offset
 	end
 
-	def self.get_working_image view, options
+	def self.get_working_image view, options=[]
 		include_background_flag = true if options.include?('act_backgrd')
 		include_background_flag = true
+		comps = []
 		if include_background_flag #options[act_backgrd] #check options of background image
 			if view == 'top'
 				comps 	= DP::get_top_visible_comps 
@@ -636,7 +646,7 @@ module WorkingDrawing
 			layer_comps.each{|x| x.visible=false if !visible_comps.include?(x)}
 		end
 		
-		outpath = "C:/RioSTD/cache/"
+		outpath = File.join(RIO_ROOT_PATH, "cache/")
 		end_format = ".jpg"
 		Dir::mkdir(outpath) unless Dir::exist?(outpath)
 		image_file_name = outpath+view+end_format
@@ -645,7 +655,7 @@ module WorkingDrawing
 		layers.each{|layer| layer.visible=false unless visible_layers.include?(layer.name)}
 		visible_layers.each{|l| Sketchup.active_model.layers[l].visible=true}
 
-		puts "visible_layers : #{visible_layers}"
+		#puts "visible_layers : #{visible_layers}"
 		visible_comps.each{|c| c.visible=true}
 		
 		#return
@@ -667,7 +677,7 @@ module WorkingDrawing
 			@cUp = [0, 0, 1]
 		elsif view == "back"
 			@cPos = [0, 0, 0]
-			@cTarg = [0, -1, 0]
+			@cTarg = [0, 1, 0]
 			@cUp = [0, 0, 1]
 		end
 		
@@ -697,9 +707,9 @@ module WorkingDrawing
 		adj_comps = scan_components
 		if !adj_comps.empty?
 			Sketchup.active_model.selection.clear
-			adj_comps.each{|comp| Sketchup.active_model.selection.add comp}
+			#adj_comps.each{|comp| Sketchup.active_model.selection.add comp}
 			UI.messagebox("The selected components overlap each other. Working drawing doesnt allow component overlap.")
-			return false
+			#return false
 		end
 		viloop = []
 		views_to_process = ["top","front","right","left","back"]
@@ -711,7 +721,7 @@ module WorkingDrawing
 			@title = "Untitled"
 		end
 
-		outpath = "C:/RioSTD/cache/"
+		outpath = File.join(RIO_ROOT_PATH,"cache")
 		Dir::mkdir(outpath) unless Dir::exist?(outpath)
 	
 
@@ -722,19 +732,19 @@ module WorkingDrawing
 			get_working_image view
 		}
 
-		FileUtils.cd(outpath)
-		f = File.open("#{@title}.pdf", 'w')
-		if f.is_a?(File)
-			f.close
-			Prawn::Document.generate("#{@title}.pdf", :page_size=>"A4", :page_layout=>:landscape) do
-				viloop.each {|vp|
-					image outpath+vp+end_format, width: 750, height: 500, resolution: 1920
-				}
-			end
-			UI.messagebox 'Export successful',MB_OK
-		else
-			UI.messagebox 'Cannot write to pdf.Please Close and try again if pdf is open.',MB_OK
-		end
+		# FileUtils.cd(outpath)
+		# f = File.open("#{@title}.pdf", 'w')
+		# if f.is_a?(File)
+		# 	f.close
+		# 	Prawn::Document.generate("#{@title}.pdf", :page_size=>"A4", :page_layout=>:landscape) do
+		# 		viloop.each {|vp|
+		# 			image outpath+vp+end_format, width: 750, height: 500, resolution: 1920
+		# 		}
+		# 	end
+		# 	UI.messagebox 'Export successful',MB_OK
+		# else
+		# 	UI.messagebox 'Cannot write to pdf.Please Close and try again if pdf is open.',MB_OK
+		# end
 		#system('explorer %s' % (outpath))
 	end
 end

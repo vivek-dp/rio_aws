@@ -2,10 +2,14 @@
 "controller": [	 
 					"create_wall.rb", 
 					"load_toolbar.rb", 
-					"import_component_aws.rb", 
+					"import_component_aws.rb",
+					"import_component.rb",
 					"dynamic_configuration.rb", 
 					"export_report.rb", 
-					"working_drawing.rb"],
+					"working_drawing.rb",
+					"first_page.rb",
+					"export_html.rb"
+				],
 "lib":{
 	"code":["aws_core.rb", 
 			"aws_database.rb",
