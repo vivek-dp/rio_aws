@@ -110,5 +110,34 @@ module RioAwsDownload
 		end
 		return nil
 	end
+
+	def self.download_file bucket_name, file_path, target_path
+		s3_client	= get_client
+		begin
+			resp 	= s3_client.get_object(bucket: bucket_name, key: file_path, response_target: target_path)
+			puts "File download success"
+			return target_path
+		rescue Aws::S3::Errors::NoSuchKey
+			puts "File Does not exist : "+file_path
+			return nil
+		end
+		return nil
+	end
 	
+	def self.download_component_list
+		s3_client	= get_client
+		target_path	= File.join(RIO_ROOT_PATH+'/cache/Rio_standard_components.csv')
+		bucket_name	= 'rio-sub-components'
+		file_path	= 'Rio_standard_components.csv'
+		begin
+			resp 	= s3_client.get_object(bucket: bucket_name, key: file_path, response_target: target_path)
+			puts "File download success"
+			return target_path
+		rescue Aws::S3::Errors::NoSuchKey
+			puts "File Does not exist"
+			return nil
+		end
+		return nil
+	end
+
 end

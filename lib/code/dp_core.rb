@@ -152,7 +152,13 @@ module DP
 	end
 
 	def self.get_rio_components
-		Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute(:rio_atts, 'rio_comp')=='true'}
+		comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute(:rio_atts, 'rio_comp')=='true'}
+		comps << Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.layer.name == 'DP_Comp_layer'}
+		comps << Sketchup.active_model.entities.grep(Sketchup::Group).select{|x| x.layer.name == 'DP_Comp_layer'}
+		attr_dict_comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| !x.definition.attribute_dictionaries.nil? }
+		comps <<  attr_dict_comps.select{|x| x.definition.attribute_dictionaries['carcase_spec'].nil? == false}
+		comps.flatten!
+		comps
 	end
 	
 	def self.get_view_face view
@@ -271,6 +277,17 @@ module DP
 			rotz = 0
 		end
 		visible_comps = comps.select{|x| xrotz=x.transformation.rotz;xrotz=xrotz.abs if view=='front';xrotz==rotz}
+		visible_comps.uniq!
+		case view.downcase
+		when 'left'
+			visible_comps.sort_by!{|comp| comp.transformation.origin.y}
+		when 'right'
+			visible_comps.sort_by!{|comp| -comp.transformation.origin.y}
+		when 'front'
+			visible_comps.sort_by!{|comp| -comp.transformation.origin.x}
+		when 'back'
+			visible_comps.sort_by!{|comp| comp.transformation.origin.x}
+		end
 		visible_comps
 	end
 
@@ -345,7 +362,7 @@ module DP
 					#corners << inner_comp.persistent_id) if adj_comps.length > 1
 				end
 			}
-
+			adj_comps.uniq!
 			comp_list[id][:adj] = adj_comps
 		}
 		return comp_list
@@ -471,7 +488,28 @@ module DP
 
 		prev_active_layer = Sketchup.active_model.active_layer.name
         #Sketchup.active_model.active_layer='DP_Floor'
-        floor_face = Sketchup.active_model.entities.add_face(pts)
+		floor_face = Sketchup.active_model.entities.add_face(pts)
+		
+		outline_face_pts = []
+		pts.each{|x| x.z = 500; outline_face_pts << x}
+		outline_floor_face 	= Sketchup.active_model.entities.add_face(outline_face_pts)
+		edges 				= outline_floor_face.edges
+		Sketchup.active_model.entities.erase_entities outline_floor_face
+		Sketchup.active_model.layers.add('DP_Floor_Face')
+		Sketchup.active_model.active_layer='DP_Floor_Face'
+		edges.each{ |edge|
+			vline = edge.line[1]
+			perpendicular_vector = Geom::Vector3d.new(vline.y*5, -vline.x*5, vline.z)
+
+			puts edge.vertices[0].position, edge.vertices[1].position
+			#Sketchup.active_model.entities.add_dimension_linear edge.vertices[0].position, edge.vertices[1].position, vector.reverse
+			ent = Sketchup.active_model.entities.add_dimension_linear edge.vertices[0].position, edge.vertices[1].position, perpendicular_vector
+			ent.hidden=true
+			edge.hidden=true
+		}
+		
+
+
 		floor_face.set_attribute :rio_atts, 'position', 'floor'
 		fcolor    			= Sketchup::Color.new "FF335B"
 		floor_face.material 		= fcolor
@@ -599,8 +637,8 @@ module DP
 			start_point = start_point.offset(zvector, window_btmposition)
 
 			window_start_point 	= start_point.offset(vector, window_position)
-			window_end_point		= start_point.offset(vector, window_position+window_width)
-			window_left_point		= window_start_point.offset(zvector, window_height)
+			window_end_point	= start_point.offset(vector, window_position+window_width)
+			window_left_point	= window_start_point.offset(zvector, window_height)
 			window_right_point	= window_end_point.offset(zvector, window_height)
 
 			window = mod.entities.add_face(window_start_point, window_end_point, window_right_point, window_left_point)
@@ -656,15 +694,21 @@ module DP
         return nil
 	end
 	
+	#Careful to use it....Will delete entities in the current model.
 	def self.save_dwg dir_path
-
+		puts dir_path
 		model 		= Sketchup.active_model
+		defn 		= Sketchup.active_model.definitions['Chris']
+		defn.instances.each{|inst|
+			model.entities.erase_entities inst
+		}
 
-		files 		= Dir.glob(dir_path+'*.dwg')
-		#files 		= Dir.glob('#{dir_path}/**/'+'*.DWG')
+		#files 		= Dir.glob(dir_path+'*.dwg')
+		files 		= Dir.glob(dir_path+'/**/'+'*.DWG')
 		files.each { |dwg_path|
+			es.each{|x| es.erase_entities x }
 			res 		= model.import dwg_path, false
-
+ 
 			Sketchup.active_model.definitions.purge_unused
 			Sketchup.active_model.layers.purge_unused
 			Sketchup.active_model.materials.purge_unused
@@ -679,20 +723,24 @@ module DP
 			Sketchup.send_action("viewIso:")
 			Sketchup.active_model.active_view.write_image image_file_name
 
-			es.each{|x| es.erase_entities x }
-			File.delete(skb_path) if File.exists(skb_path)
+			File.delete(skb_path) if File.exists?(skb_path)
 		}
 		return files.length
 	end
 
+
 	#Input should be path of the downloaded carcass and shutter
 	#Return will be a definition created using that
-	def self.create_carcass_definition carcass_path, shutter_path
+	def self.create_carcass_definition carcass_path='', shutter_path='', origin='0_0', internal=''
+		puts "create_carcass : #{carcass_path} : #{shutter_path} : #{origin} : #{internal}"
 		model 		= Sketchup.active_model
 		carcass_def = model.definitions.load(carcass_path)
-		shutter_def	= model.definitions.load(shutter_path)
+		return carcass_def if shutter_path.empty?
+		shutter_def = model.definitions.load(shutter_path)
+		bucket_name = 'rio-sub-components'
 
-		carcass_code= File.basename(carcass_path, '.skp').split('_')[0]
+		carcass_code= File.basename(carcass_path, '.skp') #.split('_')[0]
+
 		shutter_code= File.basename(shutter_path, '.skp')
 		defn_name	= carcass_code+'_'+shutter_code
 
@@ -700,15 +748,118 @@ module DP
 		definitions = model.definitions
 		defn		= definitions.add defn_name
 		
-		trans 		= Geom::Transformation.new 
+		x_offset = 0
+		y_offset = 0
+		z_offset = 0
+		if origin
+			x_offset = origin.split('_')[0].to_f.mm
+			z_offset = origin.split('_')[1].to_f.mm
+		end
+		trans 		= Geom::Transformation.new([x_offset, 0, z_offset])
 		shut_inst 	= defn.entities.add_instance(shutter_def, trans)
 		y_offset	= shut_inst.bounds.height
+		y_offset	= 23.mm
+		shutter_height = y_offset
+		#puts "#{x_offset} : #{y_offset} : #{z_offset}"
 		trans 		= Geom::Transformation.new([0,y_offset,0]) 
 		ccass_inst  = defn.entities.add_instance(carcass_def, trans)
+		ref_point 	= ccass_inst.bounds.corner(6)
 
 		defn.set_attribute(:rio_atts, 'shutter_code', shutter_code)
+
+		unless internal.empty?
+			x_offset 	= 18
+			y_offset 	= -20
+			z_offset 	= -38
+
+			code_split_arr = carcass_code.split('_')
+			doors = code_split_arr[1].to_i
+			door_width = code_split_arr[2]
+
+			internal = internal.to_i
+			category = [7, 8, 10] #Hardcodning for these three categories
+			if category.include?(internal)
+				file_name = "%dINT_%d_%d"%[doors, internal, door_width]
+				#lhs_file_name = "%dINT_%d_%d"%[doors, internal, door_width]
+				internal_skp         = file_name+'.skp'
+				aws_internal_path    = File.join('internal',internal_skp)
+				local_internal_path  = File.join(RIO_ROOT_PATH,'cache',internal_skp)
+				unless File.exists?(local_internal_path)
+					RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+				end
+				int_defn = model.definitions.load(local_internal_path)
+				rhs_def		= int_defn
+				lhs_def		= int_defn
+				center_def  = int_defn
+			else
+				#-------------------------------------------------------------------------------------
+				rhs_file_name 		= "%dINT_%d_%d"%[doors, internal, door_width]
+				lhs_file_name 		= "%dINT_%d_%d"%[doors, internal, door_width]
+				center_file_name 	= "%dINT_%d_%d"%[doors, internal, door_width]
+
+				#-------------------------------------------------------------------------------------
+				rhs_internal_skp         = rhs_file_name+'.skp'
+				aws_internal_path    = File.join('internal',rhs_internal_skp)
+				local_internal_path  = File.join(RIO_ROOT_PATH,'cache',rhs_internal_skp)
+				unless File.exists?(local_internal_path)
+					RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+				end
+				rhs_def = model.definitions.load(local_internal_path)
+				#-------------------------------------------------------------------------------------
+				lhs_internal_skp         = lhs_file_name+'.skp'
+				aws_internal_path    = File.join('internal',lhs_internal_skp)
+				local_internal_path  = File.join(RIO_ROOT_PATH,'cache',lhs_internal_skp)
+				unless File.exists?(local_internal_path)
+					RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+				end
+				lhs_def = model.definitions.load(local_internal_path)
+				#-------------------------------------------------------------------------------------
+				center_internal_skp         = center_file_name+'.skp'
+				aws_internal_path    = File.join('internal',center_internal_skp)
+				local_internal_path  = File.join(RIO_ROOT_PATH,'cache',center_internal_skp)
+				unless File.exists?(local_internal_path)
+					RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+				end
+				center_def = model.definitions.load(local_internal_path)
+			end
+
+			#Just to get the width and height of the internals....Skip if necessary
+			inst 		= es.add_instance lhs_def, ORIGIN
+			lhs_height 	= inst.bounds.height
+			lhs_depth 	= inst.bounds.depth
+			es.erase_entities inst
+
+			#Get the reference point of the component
+			pt 		= Geom::Point3d.new(0, 0,   0)
+			pt.y 	= shutter_height 
+
+			#res 		= defn.entities.add_instance carcass_def, pt
+			#ref_point 	= res.bounds.corner(6)
+
+			ply_width 	= 18.mm
+			door_width  = door_width.to_i.mm
+
+			puts "rhs_def : "+rhs_def.name
+			trans_internal 	= Geom::Transformation.new([ref_point.x+18.mm, ref_point.y-lhs_height-20.mm, ref_point.z-lhs_depth-38.mm])
+			res 			= defn.entities.add_instance rhs_def, trans_internal
+
+			if doors == 2
+				x_next_offset = (door_width + (ply_width/2))
+				trans_internal = Geom::Transformation.new([ref_point.x+x_next_offset, ref_point.y-lhs_height-20.mm, ref_point.z-lhs_depth-38.mm])
+				res 		= defn.entities.add_instance lhs_def, trans_internal
+			else
+				x_next_offset 	= (door_width + ply_width)
+				trans_internal 	= Geom::Transformation.new([ref_point.x+x_next_offset, ref_point.y-lhs_height-20.mm, ref_point.z-lhs_depth-38.mm])
+				res 			= defn.entities.add_instance center_def, trans_internal
+				
+				x_next_offset	= 2*door_width + ply_width
+				trans_internal 	= Geom::Transformation.new([ref_point.x+(x_next_offset), ref_point.y-lhs_height-20.mm, ref_point.z-lhs_depth-38.mm])
+				res 			= defn.entities.add_instance lhs_def, trans_internal
+			end
+		end
 		defn
 	end
+
 
 	def self.find_adjacent_comps comps, comp
 		adj_comps 	= []
@@ -721,8 +872,29 @@ module DP
 		}
 		adj_comps
 	end
+
+	def self.bounds_area bounds
+		area = 0
+		width = bounds.width
+		height = bounds.height
+		depth = bounds.depth
+
+		if width > 0
+			if height > 0
+				return width * height
+			else
+				return width * depth
+			end
+		else
+			return depth * height
+		end
+	end
+
+	def self.bounds_volume bounds
+		return bounds.width * bounds.depth * bounds.height
+	end
 	
-	def self.get_visible_sides comp
+	def self.get_visible_sides comp, raytest=false
 		comps 		= Sketchup.active_model.entities.grep(Sketchup::ComponentInstance)
 		room_comp 	= comps.select{|x| x.definition.name=='room_bounds'}
 		comps 		= comps - room_comp
@@ -742,7 +914,6 @@ module DP
 			left_pts	= [comp_pts[1],	comp_pts[3], comp_pts[5], comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
 			adj_comps.each{|item|
-				Sketchup.active_model.selection.add(item)
 				xn 		= comp.bounds.intersect item.bounds
 				xn_pts 	= [];(0..7).each{|x| xn_pts<<xn.corner(x).to_s}	
 	
@@ -750,12 +921,14 @@ module DP
 				left_view	= false if (xn_pts&left_pts).length > 2
 				top_view 	= false if (xn_pts&top_pts).length > 2
 			}
+			unless right_view == false
+				
+			end
 		when 90
 			right_pts 	= [comp_pts[0],comp_pts[1],comp_pts[4],comp_pts[5]]
 			left_pts	= [comp_pts[2],comp_pts[3],comp_pts[6],comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
 			adj_comps.each{|item|
-				Sketchup.active_model.selection.add(item)
 				xn 		= comp.bounds.intersect item.bounds
 				xn_pts 	= [];(0..7).each{|x| xn_pts<<xn.corner(x).to_s}	
 	
@@ -763,12 +936,29 @@ module DP
 				left_view	= false if (xn_pts&left_pts).length > 2
 				top_view 	= false if (xn_pts&top_pts).length > 2
 			}
+			if raytest
+				if right_view == true
+					pt = TT::Bounds.point(comp.bounds, TT::BB_CENTER_FRONT_CENTER)
+					hit_item = Sketchup.active_model.raytest pt, Geom::Vector3d.new(0,-1,0)
+					if hit_item
+						hit_point 	= hit_item[0]
+						dist 		= pt.distance hit_point
+					end
+				end
+				if left_view == true
+					pt = TT::Bounds.point(comp.bounds, TT::BB_CENTER_BACK_CENTER)
+					hit_item = Sketchup.active_model.raytest pt, Geom::Vector3d.new(0,1,0)
+					if hit_item
+						hit_point 	= hit_item[0]
+						dist 		= pt.distance hit_point
+					end
+				end
+			end
 		when 180, -180
 			left_pts 	= [comp_pts[0],comp_pts[2],comp_pts[4],comp_pts[6]]
 			right_pts	= [comp_pts[1],comp_pts[3],comp_pts[5],comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
 			adj_comps.each{|item|
-				Sketchup.active_model.selection.add(item)
 				xn 		= comp.bounds.intersect item.bounds
 				xn_pts 	= [];(0..7).each{|x| xn_pts<<xn.corner(x).to_s}
 				
@@ -781,7 +971,6 @@ module DP
 			right_pts	= [comp_pts[2],comp_pts[3],comp_pts[6],comp_pts[7]]
 			top_pts		= [comp_pts[4],	comp_pts[5], comp_pts[6], comp_pts[7]]
 			adj_comps.each{|item|
-				Sketchup.active_model.selection.add(item)
 				xn 		= comp.bounds.intersect item.bounds
 				xn_pts 	= [];(0..7).each{|x| xn_pts<<xn.corner(x).to_s}
 				
@@ -790,12 +979,15 @@ module DP
 				top_view 	= false if (xn_pts&top_pts).length > 2
 			}
 		end	
+		adj_comps.each{|item| Sketchup.active_model.selection.add(item) }
 		#Check the number of booleans set
 		view_count=(right_view&&0||1)+(left_view&&0||1)+(top_view&&0||1)
 		puts "view : #{view_count}"
 		if Sketchup.active_model.selection.length != view_count+1
 			puts "The components selected might be adjacent but dont cover the selected component full"
 		end
+
+
 	
 		puts "Visible views"
 		puts "left_view : #{left_view}"

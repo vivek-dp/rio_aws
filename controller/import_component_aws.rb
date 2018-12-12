@@ -104,6 +104,76 @@ module RioAWSComponent
 		}
 	end #decor_import_comp
     
+    def self.place_component options={}
+        options ={"main-category"=>"Kitchen_Base_Unit",
+            "sub-category"=>"Base_Single_Door",
+            "carcass-code"=>"BC_500",
+            "shutter-code"=>"SD_50_70",
+            "door-type"=>"Single",
+            "shutter-type"=>"solid",
+            "shutter-origin"=>"1_1"}
+
+        options = {"internal-category"=>"7",
+                "main-category"=>"Wardrobe_Sliding_Door",
+                "sub-category"=>"Wardrobe_Sliding_2Door",
+                "carcass-code"=>"WS_2_600",
+                "shutter-code"=>"SLD2_600",
+                "door-type"=>"Double",
+                "shutter-type"=>"solid",
+                "material-type"=>"aluminium",
+                "shutter-origin"=>"0_76"}
+        return false if options.empty?
+        bucket_name     = 'rio-sub-components'
+
+        main_category   = options['main-category']
+        #Bad Mapping........:)
+        main_category = 'Crockery_Unit' if main_category.start_with?('Crockery') #Temporary mapping ....Move crockery to base unit and top unit later in the AWS server
+            
+        sub_category    = options['sub-category']   #We will use it for decription
+        carcass_code    = options['carcass-code']
+        shutter_code    = options['shutter-code']||''
+        internal_code   = options['internal-category']||''
+        origin          = options['shutter-origin']||''
+
+        #------------------------------------------------------------------------------------------------
+        carcass_skp         = carcass_code+'.skp'
+        aws_carcass_path    = File.join('carcass',main_category,carcass_skp)
+        local_carcass_path  = File.join(RIO_ROOT_PATH,'cache',carcass_skp)
+
+        if File.exists?(local_carcass_path)
+            puts "File already present "
+        else
+            puts "Downloading file"
+            resp = RioAwsDownload::download_file bucket_name, aws_carcass_path, local_carcass_path
+            if resp.nil?
+                puts "Carcass file download error  : "+aws_carcass_path
+                return false
+            end
+        end
+        #------------------------------------------------------------------------------------------------
+        if shutter_code.empty?
+            local_shutter_path = ''
+        else
+            puts "Downloading shutter"
+            shutter_skp         = shutter_code+'.skp'
+            aws_shutter_path    = File.join('shutter',shutter_skp)
+            local_shutter_path  = File.join(RIO_ROOT_PATH,'cache',shutter_skp)
+            puts shutter_skp, aws_shutter_path
+            unless File.exists?(local_shutter_path)
+                RioAwsDownload::download_file bucket_name, aws_shutter_path, local_shutter_path
+            end
+        end
+
+        defn = DP::create_carcass_definition local_carcass_path, local_shutter_path, origin, internal_code
+
+        prev_active_layer = Sketchup.active_model.active_layer.name
+        Sketchup.active_model.active_layer='DP_Comp_layer'
+        
+        placecomp = Sketchup.active_model.place_component defn
+        Sketchup.active_model.active_layer=prev_active_layer
+        return true
+    end
+ 
     #Check if set_attribute to definition is right
 	def self.place_Defcomponent(val)
 		puts "place_Defcomponent : val : #{val}"
@@ -170,7 +240,7 @@ module RioAWSComponent
                 elsif status.start_with?('comp-clicked')
                     posn = status.split(':')[1].downcase
                     comp = Sketchup.active_model.selection[0]
-                    if comp.nil?
+                    if comp.nil?  
                         puts "No component selected"
                         return
                     end

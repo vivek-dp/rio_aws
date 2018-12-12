@@ -24,25 +24,27 @@ module RioDbLib
 		resp
 	end
 	
-	def self.create_user email, name=''
-		password 	= AwsLib::generate_pwd
+	def self.create_user email, name='', password=''
+		#password 	= AwsLib::generate_pwd
 		curr_date	= Time.now.strftime("%d-%m-%Y")
+		uname 		= name
 		u_name 		= name.split('@')[0] if name.empty?
-		# begin
-			# sql_query	= "insert into sketchup_users values('#{curr_date}', '#{u_name}', '#{email}', '#{password}', 'basic');"
-			# sql_client  = get_client
-			# resp 		= sql_client.query sql_query
-			# return password
-		# rescue Mysql::ServerError:
-			# puts "Server Error"
-		# end
+		begin
+			sql_query	= "insert into sketchup_users values('#{curr_date}', '#{u_name}', '#{email}', '#{password}', 'basic');"
+			sql_client  = get_client
+			puts sql_query
+			resp 		= sql_client.query sql_query
+			return password
+		rescue Mysql::ServerError
+			puts "Server Error"
+		end
 	end
 	
 	def self.show_table
 		client = get_client
 		query_str = "select * from sketchup_users;"
 		result = client.query query_str
-		pp result.entries
+		puts result.entries
 	end
 	
 	def self.get_aws_keys sql_client, u_name
