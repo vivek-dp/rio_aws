@@ -151,14 +151,141 @@ module DP
 		return pts
 	end
 
-	def self.get_rio_components
+	def self.get_rio_components cust_comps
+		puts "get_rio_comps : #{cust_comps}"
 		comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.definition.get_attribute(:rio_atts, 'rio_comp')=='true'}
 		comps << Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| x.layer.name == 'DP_Comp_layer'}
-		comps << Sketchup.active_model.entities.grep(Sketchup::Group).select{|x| x.layer.name == 'DP_Comp_layer'}
+		comps << Sketchup.active_model.entities.grep(Sketchup::Group).select{|x| x.layer.name == 'DP_Cust_Comp_layer'} if cust_comps
 		attr_dict_comps = Sketchup.active_model.entities.grep(Sketchup::ComponentInstance).select{|x| !x.definition.attribute_dictionaries.nil? }
 		comps <<  attr_dict_comps.select{|x| x.definition.attribute_dictionaries['carcase_spec'].nil? == false}
 		comps.flatten!
 		comps
+	end
+
+	def self.add_to_rio_components comp, type
+		layer_name = 'DP_Cust_Comp_layer'
+		Sketchup.active_model.layers.add(layer_name) if Sketchup.active_model.layers[layer_name].nil?
+		comp.layer = layer_name 
+		comp.set_attribute :rio_atts, 'custom_type', type
+	end
+
+	def self.get_walls 
+		walls = Sketchup.active_model.entities.grep(Sketchup::Group).select{|x| x.get_attribute(:rio_atts, 'position').nil? == false}
+		walls
+	end
+
+	def self.add_filler comp, distance, side
+		puts "add_filler"
+		rotz	= comp.transformation.rotz
+		case rotz
+		when 0
+			if side == 'left'
+				pts = [TT::Bounds.point(comp.bounds, 1),TT::Bounds.point(comp.bounds, 3), TT::Bounds.point(comp.bounds, 7), TT::Bounds.point(comp.bounds, 5)]
+				distance = -distance
+			elsif side == 'right'
+				pts = [TT::Bounds.point(comp.bounds, 0),TT::Bounds.point(comp.bounds, 2), TT::Bounds.point(comp.bounds, 6), TT::Bounds.point(comp.bounds, 4)]
+			end
+		when 90
+			if side == 'left'
+				pts = [TT::Bounds.point(comp.bounds, 2),TT::Bounds.point(comp.bounds, 3), TT::Bounds.point(comp.bounds, 7), TT::Bounds.point(comp.bounds, 6)]				
+				distance = -distance
+			elsif side == 'right'
+				pts = [TT::Bounds.point(comp.bounds, 0),TT::Bounds.point(comp.bounds, 1), TT::Bounds.point(comp.bounds, 5), TT::Bounds.point(comp.bounds, 4)]
+			end
+		when -90
+			if side == 'left'
+				pts = [TT::Bounds.point(comp.bounds, 0),TT::Bounds.point(comp.bounds, 1), TT::Bounds.point(comp.bounds, 5), TT::Bounds.point(comp.bounds, 4)]
+			elsif side == 'right'
+				pts = [TT::Bounds.point(comp.bounds, 2),TT::Bounds.point(comp.bounds, 3), TT::Bounds.point(comp.bounds, 7), TT::Bounds.point(comp.bounds, 6)]				
+				distance = -distance
+			end
+		when 180, -180
+			if side == 'left'
+				pts = [TT::Bounds.point(comp.bounds, 0),TT::Bounds.point(comp.bounds, 2), TT::Bounds.point(comp.bounds, 6), TT::Bounds.point(comp.bounds, 4)]
+			elsif side == 'right'
+				pts = [TT::Bounds.point(comp.bounds, 1),TT::Bounds.point(comp.bounds, 3), TT::Bounds.point(comp.bounds, 7), TT::Bounds.point(comp.bounds, 5)]
+				distance = -distance
+			end
+		end
+		filler_face 		= Sketchup.active_model.entities.add_face pts
+		filler_face.pushpull distance
+		filler_group 		= Sketchup.active_model.entities.add_group(filler_face.all_connected)
+		filler_group.layer 	= 'DP_Cust_Comp_layer'
+		filler_group.set_attribute(:rio_atts, 'custom_type', 'filler')
+		return filler_group
+	end
+
+	def self.check_filler comp
+		model 	= Sketchup.active_model
+		walls 	= get_walls
+		rotz	= comp.transformation.rotz
+		min_distance 	= 40.mm
+		max_distance	= 100.mm
+		case rotz
+		when 0
+			left_index 	= 21
+			right_index = 20
+			left_vector 		= Geom::Vector3d.new(1,0,0) 
+			right_vector 		= Geom::Vector3d.new(-1,0,0) 
+		when 90
+			left_index 	= 23
+			right_index = 22
+			left_vector 		= Geom::Vector3d.new(0,1,0) 
+			right_vector 		= Geom::Vector3d.new(0,-1,0) 
+		when -90
+			left_index 	= 22
+			right_index = 23
+			left_vector 		= Geom::Vector3d.new(0,-1,0) 
+			right_vector 		= Geom::Vector3d.new(0,1,0)
+		when 180, -180
+			left_index 	= 20
+			right_index = 21
+			left_vector 		= Geom::Vector3d.new(-1,0,0) 
+			right_vector 		= Geom::Vector3d.new(1,0,0) 
+		end
+
+		
+		#Check for wall on the left side....................
+		puts "Checking filler for the left side"
+		left_point  = TT::Bounds.point(comp.bounds, left_index)
+		left_ray	= [left_point, left_vector]
+		hit_array	= model.raytest(left_ray)
+		if hit_array
+			hit_point	= hit_array[0]
+			hit_item 	= hit_array[1][0]
+			distance 	= left_point.distance hit_point
+		end
+
+		if walls.include?(hit_item)
+			if distance > min_distance && distance < max_distance
+				add_filler comp, distance, left_vector, 'left'
+				return true
+			end
+		end
+
+		#Check for wall on the right side....................
+		puts "Checking filler for the right side"
+		right_point  = TT::Bounds.point(comp.bounds, right_index)
+		right_ray	= [right_point, right_vector]
+		hit_array	= model.raytest(right_ray)
+		if hit_array
+			hit_point	= hit_array[0]
+			hit_item 	= hit_array[1][0]
+			distance 	= right_point.distance hit_point
+		end
+
+		if walls.include?(hit_item)
+			if distance > min_distance && distance < max_distance
+				add_filler comp, distance, 'right'
+				return true
+			else
+				puts "Wrong distance #{distance.mm}"
+				return false
+			end
+		else
+			puts "Hit item is not a wall"
+			return false
+		end
 	end
 	
 	def self.get_view_face view
@@ -263,9 +390,9 @@ module DP
 
 	#Temporarily making wall invisible to find rio components.
 	#Future get all rio components and find their transformation
-	def self.get_visible_comps view
+	def self.get_visible_comps view, cust_comps=false
 		visible_comps = []
-		comps = get_rio_components
+		comps = get_rio_components cust_comps
 		case view.downcase
 		when 'left'
 			rotz = 90
@@ -370,7 +497,7 @@ module DP
 	
 	#Create layers for multi components
 	def self.create_layers
-		layers = ['DP_Floor', 'DP_Dimension_layer', 'DP_Comp_layer', 'DP_lamination', 'DP_Wall']
+		layers = ['DP_Floor', 'DP_Dimension_layer', 'DP_Comp_layer', 'DP_lamination', 'DP_Wall', 'DP_Window']
 		layers.each { |name|
 			Sketchup.active_model.layers.add(name) if Sketchup.active_model.layers[name].nil?
 		}
@@ -731,8 +858,8 @@ module DP
 
 	#Input should be path of the downloaded carcass and shutter
 	#Return will be a definition created using that
-	def self.create_carcass_definition carcass_path='', shutter_path='', origin='0_0', internal=''
-		puts "create_carcass : #{carcass_path} : #{shutter_path} : #{origin} : #{internal}"
+	def self.create_carcass_definition carcass_path='', shutter_path='', options={}
+		puts "create_carcass : #{carcass_path} : #{shutter_path} : #{options}"
 		model 		= Sketchup.active_model
 		carcass_def = model.definitions.load(carcass_path)
 		return carcass_def if shutter_path.empty?
@@ -748,12 +875,21 @@ module DP
 		definitions = model.definitions
 		defn		= definitions.add defn_name
 		
-		x_offset = 0
-		y_offset = 0
-		z_offset = 0
-		if origin
-			x_offset = origin.split('_')[0].to_f.mm
-			z_offset = origin.split('_')[1].to_f.mm
+		internal		= options[:internal_code]
+		shutter_origin	= options[:shutter_origin]
+		comp_origin		= options[:comp_origin]
+		if comp_origin
+			x_offset = comp_origin.x.mm
+			y_offset = comp_origin.x.mm
+			z_offset = comp_origin.x.mm
+		else
+			x_offset = 0
+			y_offset = 0
+			z_offset = 0
+		end
+		if shutter_origin
+			x_offset = shutter_origin.split('_')[0].to_f.mm
+			z_offset = shutter_origin.split('_')[1].to_f.mm
 		end
 		trans 		= Geom::Transformation.new([x_offset, 0, z_offset])
 		shut_inst 	= defn.entities.add_instance(shutter_def, trans)
@@ -767,7 +903,7 @@ module DP
 
 		defn.set_attribute(:rio_atts, 'shutter_code', shutter_code)
 
-		unless internal.empty?
+		if internal && !internal.empty?
 			x_offset 	= 18
 			y_offset 	= -20
 			z_offset 	= -38
@@ -793,9 +929,9 @@ module DP
 				center_def  = int_defn
 			else
 				#-------------------------------------------------------------------------------------
-				rhs_file_name 		= "%dINT_%d_%d"%[doors, internal, door_width]
-				lhs_file_name 		= "%dINT_%d_%d"%[doors, internal, door_width]
-				center_file_name 	= "%dINT_%d_%d"%[doors, internal, door_width]
+				rhs_file_name 		= "%dINT_%dRHS_%d"%[doors, internal, door_width]
+				lhs_file_name 		= "%dINT_%dLHS_%d"%[doors, internal, door_width]
+				center_file_name 	= "%dINT_%dLHS_RHS_%d"%[doors, internal, door_width]
 
 				#-------------------------------------------------------------------------------------
 				rhs_internal_skp         = rhs_file_name+'.skp'
@@ -814,13 +950,15 @@ module DP
 				end
 				lhs_def = model.definitions.load(local_internal_path)
 				#-------------------------------------------------------------------------------------
-				center_internal_skp         = center_file_name+'.skp'
-				aws_internal_path    = File.join('internal',center_internal_skp)
-				local_internal_path  = File.join(RIO_ROOT_PATH,'cache',center_internal_skp)
-				unless File.exists?(local_internal_path)
-					RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+				if doors == 3
+					center_internal_skp         = center_file_name+'.skp'
+					aws_internal_path    = File.join('internal',center_internal_skp)
+					local_internal_path  = File.join(RIO_ROOT_PATH,'cache',center_internal_skp)
+					unless File.exists?(local_internal_path)
+						RioAwsDownload::download_file bucket_name, aws_internal_path, local_internal_path
+					end
+					center_def = model.definitions.load(local_internal_path)
 				end
-				center_def = model.definitions.load(local_internal_path)
 			end
 
 			#Just to get the width and height of the internals....Skip if necessary
@@ -860,6 +998,16 @@ module DP
 		defn
 	end
 
+	def self.edit_component comp, options={}
+		shutter_code 	= options[:shutter_code]
+		internal_code 	= options[:internal_code]
+		origin 			= comp.transformation.origin
+		if shutter_code
+			
+		end
+		if internal_code
+		end
+	end
 
 	def self.find_adjacent_comps comps, comp
 		adj_comps 	= []
@@ -994,6 +1142,176 @@ module DP
 		puts "right_view : #{right_view}"
 		puts "Top View : #{top_view}"
 		return [left_view, right_view, top_view]
+	end
+
+	def self.add_text_to_face face, text
+		temp_group 			= Sketchup.active_model.entities.add_group
+		temp_entity_list 	= temp_group.entities
+		text_scale 			= face.bounds.height/50
+		temp_entity_list.add_3d_text(text,  TextAlignCenter, "Arial", false, false, text_scale)
+		text_component 		= temp_group.to_component
+		text_definition 	= text_component.definition
+		text_component.erase!
+
+		text_inst 			= Sketchup.active_model.entities.add_instance text_definition, Geom::Transformation.new(face.bounds.center)
+		text_inst
+	end
+
+	#---------------------------------------------------------------------
+	# ------------------------Sample input hash --------------------------
+	# space_inputs = {'space_type'=>'kitchen',
+	# 				'space_name'=>'kitchen#1',
+	# 				'wall_height'=>'2000',
+	# 				'wall_thickness'=>'200',
+	# 				'door_height'=>'1400',
+	# 				'window_height'=>'600',
+	# 				'window_offset'=>'700'
+	# 			}
+	#---------------------------------------------------------------------
+
+	def self.create_spacetype space_inputs, create_face_flag=false
+		Sketchup.active_model.start_operation '2d_to_3d'
+		if input_arr.is_a?(Array)
+			space_type 		= space_inputs[0]
+			space_name		= space_inputs[1]
+			wall_height		= space_inputs[2].to_i.mm
+			wall_thickness	= space_inputs[3].to_i.mm
+		else
+			space_type 		= space_inputs['space_type']
+			space_name		= space_inputs['space_name']
+			wall_height		= space_inputs['wall_height'].to_i.mm
+			wall_thickness  = space_inputs['wall_thickness'].to_i.mm
+			door_height		= space_inputs['door_height'].to_i.mm
+			window_height	= space_inputs['window_height'].to_i.mm
+			window_offset	= space_inputs['window_offset'].to_i.mm
+		end
+
+
+		zvector 		= Geom::Vector3d.new(0, 0, 1)
+		model			= Sketchup.active_model
+		ents			= model.entities
+		seln 			= model.selection
+		layers			= model.layers
+
+		space_face 		= seln[0]
+		space_face.set_attribute :rio_atts, 'floor_name', space_name
+		floor_layer		= Sketchup.active_model.layers.add 'DP_Floor_'+space_name
+		wall_layer		= Sketchup.active_model.layers.add 'DP_Wall_'+space_name
+		space_face.layer= floor_layer
+		text_inst 		= add_text_to_face space_face, space_name
+		
+		space_edges		= space_face.outer_loop.edges 
+		#Add walls
+		wall_faces_group	= Sketchup.active_model.entities.add_group
+		temp_entity_list 	= wall_faces_group.entities
+
+		puts "#{space_edges} : #{space_face}"
+		wall_faces 	= []
+		space_edges.each{ |edge|
+			if edge.layer.name == 'Wall' 
+				vertices	= edge.vertices
+				pt1 		= vertices[0].position
+				pt2			= vertices[1].position
+
+				pt3			= pt2.offset(zvector, wall_height)
+				pt4			= pt1.offset(zvector, wall_height)
+				
+				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+				wall_face.layer = 'DP_Wall'
+				wall_faces << wall_face
+			end
+		}
+
+		#----------------------------Add door top face-----------------------------
+		if door_height
+			space_edges.each {|edge|
+				if edge.layer.name == 'Door' 
+					vertices	= edge.vertices
+					pt1 		= vertices[0].position.offset(zvector, door_height)
+					pt2			= vertices[1].position.offset(zvector, door_height)
+
+					pt3			= vertices[1].position.offset(zvector, wall_height)
+					pt4			= vertices[0].position.offset(zvector, wall_height)
+
+					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+					wall_face.layer = 'DP_Wall'
+					wall_faces << wall_face
+				end
+				
+			}
+		else
+			#Create walls for windows and doors
+			if edge.layer.name == 'Door' 
+				vertices	= edge.vertices
+				pt1 		= vertices[0].position
+				pt2			= vertices[1].position
+
+				pt3			= pt2.offset(zvector, wall_height)
+				pt4			= pt1.offset(zvector, wall_height)
+				
+				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+				wall_face.layer = 'DP_Wall'
+				wall_faces << wall_face
+			end
+		end
+
+		#----------------------------Add door top face-----------------------------
+		if window_height
+			space_edges.each {|edge|
+				if edge.layer.name == 'Window' 
+					vertices	= edge.vertices
+					pt1 		= vertices[0].position
+					pt2			= vertices[1].position
+
+					pt3			= pt2.position.offset(zvector, window_offset)
+					pt4			= pt1.position.offset(zvector, window_offset)
+
+					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+					wall_face.layer = 'DP_Wall'
+					wall_faces << wall_face
+
+					#Extra face for window only when the combined height is less than Wall height
+					if (window_offset+window_height < wall_height)
+						pt1 		= vertices[0].position.offset(zvector, window_offset+window_height)
+						pt2			= vertices[1].position.offset(zvector, window_offset+window_height)
+
+						pt3			= pt2.position.offset(zvector, wall_height)
+						pt4			= pt1.position.offset(zvector, wall_height)
+
+						wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+						wall_face.layer = 'DP_Wall'
+						wall_faces << wall_face
+					end
+				end
+				
+			}
+		else
+			#Create walls for windows and doors
+			if edge.layer.name == 'Door' 
+				vertices	= edge.vertices
+				pt1 		= vertices[0].position
+				pt2			= vertices[1].position
+
+				pt3			= pt2.offset(zvector, wall_height)
+				pt4			= pt1.offset(zvector, wall_height)
+				
+				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+				wall_face.layer = 'DP_Wall'
+				wall_faces << wall_face
+			end
+		end
+
+
+
+		#pre processing
+		prev_active_layer 	= Sketchup.active_model.active_layer.name
+		model.active_layer 	= floor_layer
+		floor_group 		= model.active_entities.add_group(space_face, text_inst)
+
+		model.active_layer 	= wall_layer
+		wall_group 			= model.active_entities.add_group(wall_faces)
+
+		model.active_layer 	= prev_active_layer
 	end
 
 	def self.test_mod_fun

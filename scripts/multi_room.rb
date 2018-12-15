@@ -30,9 +30,40 @@ module MultiRoomLib
 		text_inst 			= Sketchup.active_model.entities.add_instance text_definition, Geom::Transformation.new(face.bounds.center)
 		text_inst
 	end
+	
+	def self.get_window_faces
+		window_faces = []
+		Sketchup.active_model.entities.grep(Sketchup::Face).each{|face|
+			face_edges = face.edges
+			next if face.edges.length != 4
+			window_faces << face if face.edges.select{|ed| ed.layer.name == 'Wall'}.length == 2 && face.edges.select{|ed| ed.layer.name == 'Window'}.length == 2
+		}
+		window_faces
+	end
+	
+	#Send an Array with pushed elements ....use array.push
+	def self.find_adj_window_face arr=[]
+		puts "arr : #{arr} #{arr.length}"
+		window_faces = get_window_faces
+		if arr.length == 3
+			return arr
+		else
+			face = arr.last
+			face.edges.each{|edge|
+				edge.faces.each{|face|
+					if window_faces.include?(face) && !arr.include?(face)
+						arr.push(face)
+						find_adj_window_face arr
+					end
+				}
+			}
+			return arr 
+		end
+	end
 
 	def self.create_spacetype space_inputs, create_face_flag=false
 		Sketchup.active_model.start_operation '2d_to_3d'
+		puts "create_space : #{space_inputs}"
 		if space_inputs.is_a?(Array)
 			space_type 		= space_inputs[0]
 			space_name		= space_inputs[1]
@@ -126,9 +157,17 @@ module MultiRoomLib
 
 		#----------------------------Add door top face-----------------------------
 		if window_height
+			puts "window h :#{window_height}"
+			puts "window o :#{window_offset}"
+			combined_ht = (window_offset+window_height).mm
+			height_arr = [window_offset, combined_ht, wall_height]
+			puts "height_arr : #{height_arr}"
+			#This algorithm will create a single 
 			space_edges.each {|edge|
 				if edge.layer.name == 'Window' 
 					vertices	= edge.vertices
+					
+					#Normal wall rise for Window
 					pt1 		= vertices[0].position
 					pt2			= vertices[1].position
 
@@ -139,6 +178,7 @@ module MultiRoomLib
 					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
 					wall_face.layer = 'DP_Wall'
 					wall_faces << wall_face
+					#wall_face.edges.each{|ed| (ents.erase_entities ed) if (ed.line[1] == zvector || ed.line[1] == zvector.reverse)}
 
 					#Extra face for window only when the combined height is less than Wall height
 					if (window_offset+window_height < wall_height)
@@ -152,23 +192,102 @@ module MultiRoomLib
 						wall_face.layer = 'DP_Wall'
 						wall_faces << wall_face
 					end
+					window_face 	= edge.faces
+					window_face.delete space_face
+					window_faces = find_adj_window_face [window_face[0]]
+					
+					edge_array = []
+					window_faces.each{|wface| edge_array << wface.edges}
+					edge_array.flatten!.uniq!.select!{|x| x.layer.name=='Window'}
+					
+					edge_array.sort_by!{|x| x.bounds.center.distance edge.bounds.center}
+					sel.add(edge_array.last)
+					last_edge 	= edge_array.last
+					
+					
+					#puts "height_arr : #{height_arr}"
+					# height_arr.each { |face_height|
+						# puts "face_height : #{face_height}"
+						# window_faces.each{|face|
+							# verts = face.vertices
+							# pt_arr = []
+							# verts.each{|pt|
+								# pt_arr << pt.position.offset(zvector, face_height)
+							# }
+							# temp_face = ents.add_face(pt_arr) if pt_arr
+							# wall_faces << temp_face
+						# }
+					# }
+					#Removing the loop above......Dunno why it doesnt work for unit conversion.....window_height+window_offset doesnt work :(
+					temp_arr = []
+					temp_face = nil
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, window_offset)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							#temp_arr << [temp_face, window_offset]
+							wall_faces << temp_face
+					}
+					
+					verts 	= last_edge.vertices
+					ledge1 	= verts[0].position
+					ledge2 	= verts[1].position
+					pt3		= ledge2.offset(zvector, window_offset)
+					pt4		= ledge1.offset(zvector, window_offset)
+					temp_face = ents.add_face(ledge1, ledge2, pt3, pt4) #Down back  window face
+					wall_faces << temp_face
+					
+					
+					pt1 	= ledge1.offset(zvector, window_offset+window_height)
+					pt2 	= ledge2.offset(zvector, window_offset+window_height)
+					pt3		= ledge2.offset(zvector, wall_height)
+					pt4		= ledge1.offset(zvector, wall_height)
+					temp_face = ents.add_face(pt1, pt2, pt3, pt4) #Up back window face
+					wall_faces << temp_face
+					
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, window_height+window_offset)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							wall_faces << temp_face
+					}
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, wall_height)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							reverse_offset = door_height - (window_height+window_offset)
+							#temp_arr << [temp_face, reverse_offset]
+							wall_faces << temp_face
+					}
+					
 				end
 				
 			}
 		else
 			#Create walls for windows and doors
-			if edge.layer.name == 'Door' 
-				vertices	= edge.vertices
-				pt1 		= vertices[0].position
-				pt2			= vertices[1].position
+			space_edges.each {|edge|
+				if edge.layer.name == 'Window' 
+					vertices	= edge.vertices
+					pt1 		= vertices[0].position
+					pt2			= vertices[1].position
 
-				pt3			= pt2.offset(zvector, wall_height)
-				pt4			= pt1.offset(zvector, wall_height)
-				
-				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
-				wall_face.layer = 'DP_Wall'
-				wall_faces << wall_face
-			end
+					pt3			= pt2.offset(zvector, wall_height)
+					pt4			= pt1.offset(zvector, wall_height)
+					
+					window_face 	= ents.add_face pt1, pt2, pt3, pt4
+					window_face.layer = 'DP_Window'
+					wall_faces << window_face
+				end
+			}
 		end
 
 
@@ -190,6 +309,8 @@ module MultiRoomLib
 		model.active_layer 	= prev_active_layer
 	end
 end
+
+=begin
 
 class MyTool
 	include Singleton	
@@ -264,3 +385,4 @@ space_inputs = {'space_type'=>'kitchen',
 
 #MultiRoomLib::create_spacetype space_inputs,  ct
 
+=end

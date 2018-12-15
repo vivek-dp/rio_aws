@@ -8,7 +8,7 @@ if defined?(RIO_ROOT_PATH).to_s != 'constant'
 	install_path 	= File.join(RIO_ROOT_PATH, 'install')
 	puts RIO_ROOT_PATH
 
-	json_file 		= File.read('settings/file_list_schema.json');
+	json_file 		= File.read(RIO_ROOT_PATH+'/settings/file_list_schema.json');
 	file_list_h		= JSON.parse(json_file)
 	flist			= []
 	file_list_h.keys.each { |key|
@@ -33,9 +33,31 @@ if defined?(RIO_ROOT_PATH).to_s != 'constant'
 	#file_loaded?
 end
 
+flist.each{|file_name|
+	puts file_name
+	Sketchup::require file_name
+}
 #-----------------------------------------Add Pre start processes here--------------------
 #
 DP::create_layers
 WorkingDrawing::initialize
 #
 #-----------------------------------------------------------------------------------------
+
+#------------------------------------------Observers--------------------------------------
+# class MyEntitiesObserver < Sketchup::EntitiesObserver
+	# def onElementAdded(entities, entity)
+		# puts "onElementAdded: #{entity}"
+	# end
+	# def onElementModified(entities, entity)
+		# puts "onElementModified: #{entity}"
+	# end
+# end
+
+#Attach the observer
+# Sketchup.active_model.entities.add_observer(MyEntitiesObserver.new)
+
+
+
+
+

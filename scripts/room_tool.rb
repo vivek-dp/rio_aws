@@ -67,6 +67,7 @@ class RoomTool
 		input 		= UI.inputbox(prompts, defaults, list, "Space Type.")
 		if input
 			name 	= input[1].start_with?('Room#')
+			puts "name : #{name} : #{input[1]}"
 			@count+=1 if name
 			return input
 		end
@@ -75,7 +76,7 @@ class RoomTool
 	
 	def onLButtonDown(flags,x,y,view)
 		puts "onLButtonDown : #{@count}"
-		@count+=1
+		#@count+=1
 		input_point = view.inputpoint x, y
 		face 		= clicked_face view, x, y
 		if face

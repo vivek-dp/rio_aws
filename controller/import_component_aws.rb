@@ -100,28 +100,45 @@ module RioAWSComponent
         #End : Temporary code for local access of the assets...
 		
 		dialog.add_action_callback("place_model"){|d, val|
-			self.place_Defcomponent(val)
-		}
+			place_Defcomponent(val)
+        }
+        dialog.add_action_callback("edit_component"){|d, val|
+            place_component(val, true)
+        }
 	end #decor_import_comp
     
-    def self.place_component options={}
-        options ={"main-category"=>"Kitchen_Base_Unit",
-            "sub-category"=>"Base_Single_Door",
-            "carcass-code"=>"BC_500",
-            "shutter-code"=>"SD_50_70",
-            "door-type"=>"Single",
-            "shutter-type"=>"solid",
-            "shutter-origin"=>"1_1"}
+    def self.place_component options={}, edit=false
+        comp_origin     = nil
 
-        options = {"internal-category"=>"7",
-                "main-category"=>"Wardrobe_Sliding_Door",
-                "sub-category"=>"Wardrobe_Sliding_2Door",
-                "carcass-code"=>"WS_2_600",
-                "shutter-code"=>"SLD2_600",
-                "door-type"=>"Double",
-                "shutter-type"=>"solid",
-                "material-type"=>"aluminium",
-                "shutter-origin"=>"0_76"}
+        if edit==true
+            if Sketchup.active_model.selection.empty?
+                UI.messagebox('No component selected')  #This should not happen 
+                return false
+            end
+            sel             = Sketchup.active_model.selection[0] 
+            comp_origin     = sel.transformation.origin
+            comp_trans      = sel.transformation
+        end
+
+
+        # options ={"main-category"=>"Kitchen_Base_Unit",
+        #     "sub-category"=>"Base_Single_Door",
+        #     "carcass-code"=>"BC_500",
+        #     "shutter-code"=>"SD_50_70",
+        #     "door-type"=>"Single",
+        #     "shutter-type"=>"solid",
+        #     "shutter-origin"=>"1_1"}
+
+        # options = {"internal-category"=>"7",
+        #         "main-category"=>"Wardrobe_Sliding_Door",
+        #         "sub-category"=>"Wardrobe_Sliding_2Door",
+        #         "carcass-code"=>"WS_2_600",
+        #         "shutter-code"=>"SLD2_600",
+        #         "door-type"=>"Double",
+        #         "shutter-type"=>"solid",
+        #         "material-type"=>"aluminium",
+        #         "shutter-origin"=>"0_76"}
+
         return false if options.empty?
         bucket_name     = 'rio-sub-components'
 
@@ -133,7 +150,7 @@ module RioAWSComponent
         carcass_code    = options['carcass-code']
         shutter_code    = options['shutter-code']||''
         internal_code   = options['internal-category']||''
-        origin          = options['shutter-origin']||''
+        shutter_origin  = options['shutter-origin']||''
 
         #------------------------------------------------------------------------------------------------
         carcass_skp         = carcass_code+'.skp'
@@ -164,12 +181,28 @@ module RioAWSComponent
             end
         end
 
-        defn = DP::create_carcass_definition local_carcass_path, local_shutter_path, origin, internal_code
+        options = {
+            :shutter_origin => shutter_origin,
+            :internal_code => internal_code,
+            :comp_origin => comp_origin
+        }
+        #Remove the previous component
+        Sketchup.active_model.entities.erase_entities sel if edit
+
+        defn = DP::create_carcass_definition local_carcass_path, local_shutter_path, options
+        defn.set_attribute(:rio_atts, 'carcass_code', carcass_code)
+        defn.set_attribute(:rio_atts, 'shutter_code', shutter_code)
+        defn.set_attribute(:rio_atts, 'internal_code', internal_code)
 
         prev_active_layer = Sketchup.active_model.active_layer.name
         Sketchup.active_model.active_layer='DP_Comp_layer'
         
-        placecomp = Sketchup.active_model.place_component defn
+        if edit == true
+            Sketchup.active_model.entities.add_instance defn, comp_trans
+        else
+            placecomp = Sketchup.active_model.place_component defn
+        
+        end
         Sketchup.active_model.active_layer=prev_active_layer
         return true
     end

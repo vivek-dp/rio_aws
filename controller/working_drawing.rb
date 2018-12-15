@@ -78,7 +78,13 @@ module WorkingDrawing
         #puts "add_lamination_menu"
         if (!@add_menu)
             UI.add_context_menu_handler do |popup|
-                sel = Sketchup.active_model.selection[0]
+				sel = Sketchup.active_model.selection[0]
+				
+				if sel.is_a?(Sketchup::ComponentInstance) || sel.is_a?(Sketchup::Group)
+					popup.add_item('Add to Rio Components') {
+						DecorStandards::add_comp_from_menu
+					}
+				end
                 if sel.is_a?(Sketchup::ComponentInstance)
                     #lam_code = get_lamination sel
 					#lam_code = "" unless lam_code
@@ -88,7 +94,7 @@ module WorkingDrawing
 					if left||right||top
 						popup.add_item('Lamination Code') {
 							prompts = []
-							defaults = []
+							defaults = [] 
 							if left
 								prompts << "Left  " 
 								defaults << (get_lamination sel, 'left_lamination')
@@ -119,6 +125,10 @@ module WorkingDrawing
                         DP::set_state 'comp-clicked:'+input[0].downcase if input
                         RioAWSComponent::decor_import_comp
 					}
+					popup.add_item('Edit Rio component') {
+                        DP::set_state 'comp-clicked:'+input[0].downcase if input
+                        RioAWSComponent::decor_import_comp
+					}
 					
 					#If component Instance is a wall......This is deprecated....Wall should be a group
                     posn = sel.get_attribute :rio_atts, "position"
@@ -134,6 +144,15 @@ module WorkingDrawing
 						posn = sel.get_attribute :rio_atts, "position"
 						DP::set_state 'wall-clicked:'+posn
 						RioAWSComponent::decor_import_comp
+					}
+				elsif sel.is_a?(Sketchup::Face)
+					popup.add_item('Add Space Type(Rio)') {
+						prompts = ["Type","Name","Wall height", "Thickness"]
+						defaults = ["Kitchen"]
+						list = ["Kitchen|Wash Room|Bed Room|Living Room|Balcony"]
+						input = UI.inputbox(prompts, defaults, list, "Space Type.")
+						DP::create_spacetype input
+						puts "Input : #{input}"
 					}
                 end
             end  
