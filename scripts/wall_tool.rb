@@ -1,8 +1,15 @@
 class MyTool
+	include Singleton	
+	
+	def initialize
+		@count = 1
+		puts "@count : #{@count}"
+	end
+	
 	def activate
 		puts 'Your tool has been activated.'
 	end
-
+	
 	def set_start_point ip
 		@start_point = ip
 	end
@@ -44,7 +51,8 @@ class MyTool
 		puts "                 y = #{y}"
 		puts "              view = #{view.center}"
 		ip = view.inputpoint x, y
-		puts "point : #{ip.position}"
+		puts "point : #{ip.position} : #{@count}"
+		@count+=1
 	end
 	
 	def onLButtonUp(flags, x, y, view)
@@ -118,5 +126,5 @@ class MyTool
 	end
 end
 
-my_tool 	= MyTool.new
+my_tool 	= MyTool.instance
 Sketchup.active_model.select_tool(my_tool)

@@ -4,6 +4,9 @@ list = ["Kitchen|Wash Room|Bed Room|Living Room|Balcony"]
 #input = UI.inputbox(prompts, defaults, list, "Space Type.")
 
 $count = 1
+
+
+
 layer_name = 'Wall'
 model		= Sketchup.active_model
 ents 		= model.entities
@@ -15,17 +18,6 @@ layer_ents.each{|edge|
 }
 
 module MultiRoomLib
-	@@room_count = 1
-	#@@colors	
-	
-	def self.set_room_count x
-		@@room_count = x
-	end
-
-	def self.get_room_count
-		@@room_count
-	end
-
 	def self.add_text_to_face face, text
 		temp_group 			= Sketchup.active_model.entities.add_group
 		temp_entity_list 	= temp_group.entities
@@ -39,13 +31,15 @@ module MultiRoomLib
 		text_inst
 	end
 
-	def self.create_spacetype space_inputs, room_count=1, create_face_flag=false
+	def self.create_spacetype space_inputs, create_face_flag=false
 		Sketchup.active_model.start_operation '2d_to_3d'
 		if space_inputs.is_a?(Array)
 			space_type 		= space_inputs[0]
 			space_name		= space_inputs[1]
 			wall_height		= space_inputs[2].to_i.mm
-			wall_thickness	= space_inputs[3].to_i.mm
+			door_height		= space_inputs[3].to_i.mm
+			window_height	= space_inputs[4].to_i.mm
+			window_offset	= space_inputs[5].to_i.mm
 		else
 			space_type 		= space_inputs['space_type']
 			space_name		= space_inputs['space_name']
@@ -55,10 +49,7 @@ module MultiRoomLib
 			window_height	= space_inputs['window_height'].to_i.mm
 			window_offset	= space_inputs['window_offset'].to_i.mm
 		end
-		
-		#room_count 		= get_room_count
-		space_name		= "Room"+room_count.to_s
-		#set_room_count
+	
 		
 		zvector 		= Geom::Vector3d.new(0, 0, 1)
 		model			= Sketchup.active_model
@@ -144,6 +135,7 @@ module MultiRoomLib
 					pt3			= pt2.offset(zvector, window_offset)
 					pt4			= pt1.offset(zvector, window_offset)
 
+					puts "Window pts : #{pt1} : #{pt2} : #{pt3} : #{pt4} " 
 					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
 					wall_face.layer = 'DP_Wall'
 					wall_faces << wall_face
@@ -197,6 +189,68 @@ module MultiRoomLib
 
 		model.active_layer 	= prev_active_layer
 	end
+end
+
+class MyTool
+	include Singleton	
+	
+	def initialize
+		@count = 1
+		puts "@count : #{@count}"
+	end
+	
+	def activate
+		puts 'Your tool has been activated.'
+	end
+	
+	def reduce_count
+		@count-=1
+	end
+	
+	def clicked_face view, x, y
+		ph = view.pick_helper
+		ph.do_pick x, y
+		face = ph.best_picked
+		return nil unless face.is_a?(Sketchup::Face)
+		return face
+	end
+	
+	def get_space_inputs
+		edges 		= face.edges
+		door_flag 	= false
+		window_flag	= false
+
+		edges.each { |edge|
+			layer_name	= edge.layer.name
+			if layer_name == 'Door'
+				door_flag 	= true
+			elsif layer_name == 'Window'
+				window_flag = true
+			end
+		}
+		
+		prompts 	= ["Space Type","Name","Wall height"]
+		defaults 	= ["Kitchen"]
+		list 		= ["Kitchen|Wash Room|Bed Room|Living Room|Balcony", "gfdjgjds"]
+		
+		prompts << "Door height" if door_flag
+		prompts	<< "Window height, Window offset(from floor)" if window_flag
+		defaults << "Room#"+@count
+		
+		input 		= UI.inputbox(prompts, defaults, list, "Space Type.")
+		if input
+			name 	= input[1].starts_with?('Room#')
+			@count+=1 if name
+		end
+	end
+	
+	def onLButtonDown(flags,x,y,view)
+		puts "onLButtonDown : #{@count}"
+		input_point = view.inputpoint x, y
+		face 		= clicked_face view, x, y
+		get_space_inputs face if face
+	end
+	
 end
 
 space_inputs = {'space_type'=>'kitchen',
