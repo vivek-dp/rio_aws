@@ -5,6 +5,7 @@ class RoomTool
 	
 	def initialize
 		@count = 1
+		@colors = Sketchup::Color.names
 		puts "@count : #{@count}"
 	end
 	
@@ -75,15 +76,20 @@ class RoomTool
 	end
 	
 	def onLButtonDown(flags,x,y,view)
-		puts "onLButtonDown : #{@count}"
 		#@count+=1
+		wall_color = @colors.shuffle.last
+		puts "wall_color : #{wall_color}"
+		@colors.delete wall_color
+		
 		input_point = view.inputpoint x, y
 		face 		= clicked_face view, x, y
+		puts "onLButtonDown : #{@count} : #{face}"
 		if face
 			inputs 		= get_space_inputs face 
 			if inputs
+				Sketchup.active_model.selection.clear
 				Sketchup.active_model.selection.add face
-				MultiRoomLib::create_spacetype inputs
+				MultiRoomLib::create_spacetype face, inputs
 			end
 		end	
 	end

@@ -68,6 +68,9 @@ entity.entities.intersect_with(true, entity.transformation, entity.entities.pare
 
 
 #----------------------------------------------------------------------------------------------------
+load 'E:\git\rio_aws\scripts\room_tool.rb'
+Sketchup.active_model.start_operation '2d_to_3d'
+
 layer_name = 'Wall'
 model		= Sketchup.active_model
 ents 		= model.entities
@@ -77,6 +80,12 @@ layer_ents 	= ents.select{|ent| ent.layer.name == layer_name}
 layer_ents.each{|edge|
 	edge.find_faces
 }
+
+
+
+
+
+#Sketchup.active_model.abort_operation
 
 faces = Sketchup.active_model.entities.grep(Sketchup::Face)
 
@@ -97,6 +106,11 @@ faces = Sketchup.active_model.entities.grep(Sketchup::Face)
 Sketchup.active_model.start_operation '2d_to_3d'
 
 faces = Sketchup.active_model.entities.grep(Sketchup::Face)
+
+faces.each{|face| 
+	face.pushpull -2000.mm
+}
+
 timer_id = UI.start_timer(1, true) {
 	if faces.empty?
 		UI.stop_timer timer_id
@@ -105,6 +119,9 @@ timer_id = UI.start_timer(1, true) {
 		x.pushpull -2000.mm
 	end	
 }
+
+
+
 
 
 Sketchup.active_model.abort_operation

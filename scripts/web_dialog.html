@@ -1,15 +1,50 @@
 <html>
 
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+	<link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
 <script>
-	function my_js_method(){
-	  window.location = 'skp:my_ruby_method_to_js_call@my_params';
+	function createSpace(){
+	  window.location = 'skp:create_room_space@my_params';
 	}
 </script>
 
 <body>
 	
-	<button onclick="my_js_method()">Send to Ruby</button>
+	<button onclick="createSpace()">Create Space</button>
+	
+	<form class="ui form">
+		<h4 class="ui dividing header">Space Details</h4>
+		<div class="two fields">
+			<div class="field">
+				<label>State</label>
+				<select class="ui fluid dropdown">
+					<option value="kitchen">Kitchen</option>
+					<option value="wash_room">Wash Room</option>
+					<option value="bed_room">Bed Room</option>
+					<option value="living_room">Living Room</option>
+					<option value="balcony">Balcony</option>
+				</select>
+			</div>
+			<label>Name</label>
+			<div class="field">
+				<input type="text" placeholder="">
+			</div>
+			<label>Name</label>
+			<div class="field">
+				<input type="text" placeholder="">
+			</div>
+		</div>
+	</form>
 </body>
 
 </html>

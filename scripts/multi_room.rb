@@ -61,7 +61,7 @@ module MultiRoomLib
 		end
 	end
 
-	def self.create_spacetype space_inputs, create_face_flag=false
+	def self.create_spacetype space_face, space_inputs, create_face_flag=false
 		Sketchup.active_model.start_operation '2d_to_3d'
 		puts "create_space : #{space_inputs}"
 		if space_inputs.is_a?(Array)
@@ -93,7 +93,11 @@ module MultiRoomLib
 			puts "No Component selected" 
 			return false
 		end
-		space_face 		= seln[0]
+		#space_face 		= seln[0]
+		if !space_face.is_a?(Sketchup::Face)
+			puts "Selection is not a face" 
+			return
+		end
 		space_face.set_attribute :rio_atts, 'floor_name', space_name
 		floor_layer		= Sketchup.active_model.layers.add 'DP_Floor_'+space_name
 		wall_layer		= Sketchup.active_model.layers.add 'DP_Wall_'+space_name
@@ -309,80 +313,3 @@ module MultiRoomLib
 		model.active_layer 	= prev_active_layer
 	end
 end
-
-=begin
-
-class MyTool
-	include Singleton	
-	
-	def initialize
-		@count = 1
-		puts "@count : #{@count}"
-	end
-	
-	def activate
-		puts 'Your tool has been activated.'
-	end
-	
-	def reduce_count
-		@count-=1
-	end
-	
-	def clicked_face view, x, y
-		ph = view.pick_helper
-		ph.do_pick x, y
-		face = ph.best_picked
-		return nil unless face.is_a?(Sketchup::Face)
-		return face
-	end
-	
-	def get_space_inputs
-		edges 		= face.edges
-		door_flag 	= false
-		window_flag	= false
-
-		edges.each { |edge|
-			layer_name	= edge.layer.name
-			if layer_name == 'Door'
-				door_flag 	= true
-			elsif layer_name == 'Window'
-				window_flag = true
-			end
-		}
-		
-		prompts 	= ["Space Type","Name","Wall height"]
-		defaults 	= ["Kitchen"]
-		list 		= ["Kitchen|Wash Room|Bed Room|Living Room|Balcony", "gfdjgjds"]
-		
-		prompts << "Door height" if door_flag
-		prompts	<< "Window height, Window offset(from floor)" if window_flag
-		defaults << "Room#"+@count
-		
-		input 		= UI.inputbox(prompts, defaults, list, "Space Type.")
-		if input
-			name 	= input[1].starts_with?('Room#')
-			@count+=1 if name
-		end
-	end
-	
-	def onLButtonDown(flags,x,y,view)
-		puts "onLButtonDown : #{@count}"
-		input_point = view.inputpoint x, y
-		face 		= clicked_face view, x, y
-		get_space_inputs face if face
-	end
-	
-end
-
-space_inputs = {'space_type'=>'kitchen',
-				'space_name'=>'kitchen#1',
-				'wall_height'=>'2000',
-				'wall_thickness'=>'200',
-				'door_height'=>'1400',
-				'window_height'=>'600',
-				'window_offset'=>'700'
-			}
-
-#MultiRoomLib::create_spacetype space_inputs,  ct
-
-=end

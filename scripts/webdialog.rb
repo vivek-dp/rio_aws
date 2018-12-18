@@ -2,7 +2,7 @@
 @dialog.set_size(510, 380)
 @dialog.set_file File.dirname(__FILE__) + "/web_dialog.html"
 
-@dialog.add_action_callback("my_ruby_method_to_js_call") {|dialog, param| 
+@dialog.add_action_callback("create_room_space") {|dialog, param| 
 	puts "params"+param.to_s 
 }
 @dialog.show

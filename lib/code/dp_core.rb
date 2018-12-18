@@ -1169,9 +1169,320 @@ module DP
 	# 			}
 	#---------------------------------------------------------------------
 
+	def self.create_faces_outline_plan
+		layer_name = 'Wall'
+		model		= Sketchup.active_model
+		ents 		= model.entities
+		layer_ents 	= ents.select{|ent| ent.layer.name == layer_name}
+		
+		layer_ents.each{|edge|
+			edge.find_faces
+		}
+	end
+
+	def self.add_spacetype space_inputs, space_face=nil
+		Sketchup.active_model.start_operation '2d_to_3d'
+		puts "create_space : #{space_inputs}"
+		space_type 		= space_inputs[0]
+		space_name		= space_inputs[1]
+		floor_layer		= Sketchup.active_model.layers.add 'DP_Floor_'+space_name
+		
+		model			= Sketchup.active_model
+		ents			= model.entities
+		seln 			= model.selection
+		layers			= model.layers
+
+		space_face 		= seln[0] if space_face.nil?
+
+		prev_active_layer 	= Sketchup.active_model.active_layer.name
+		model.active_layer 	= floor_layer
+		text_inst 			= add_text_to_face space_face, space_name
+		floor_group 		= model.active_entities.add_group(space_face, text_inst)
+		floor_group.set_attribute :rio_atts, 'space_name', space_name
+	end
+
+	def self.has_door_windows? face
+		resp_h = {:window=>false, :door=>false}
+		edge = face.edges.select{|edge| edge.layer.name=='Window'}
+		resp_h[:window] = true unless edge.empty?
+		edge = face.edges.select{|edge| edge.layer.name=='Door'}
+		resp_h[:window] = true unless edge.empty?
+		return resp_h
+	end
+
+	def self.get_comp_room comp
+		if comp.nil?
+			puts "Check room bounds : Comp is nil" 
+			return true	
+		end
+		wall_groups 	= Sketchup.active_model.entities.grep(Sketchup::Group).select{|x| x.layer.name.start_with?('DP_Wall_')}
+		
+		comp_wall=nil
+		wall_groups.each {|wall_group|
+			if wall_group.bounds.contains?(comp.bounds)
+				room_name = wall_group.layer.name.tr('DP_Wall_','')	
+				return room_name
+			end
+		}
+		return false
+	end
+
+	def self.get_space_names
+		spaces = Sketchup.activ_model.entities.grep(Sketchup::Group).select{|gp| gp.get_attribute :rio_atts, 'space_name' != nil}
+		space_names = []
+		spaces.each{|space| space_names << space.get_attribute :rio_atts, 'space_name'}
+		space_names
+	end
+
+	def self.get_space_components space_name
+		rio_comps 	= get_rio_components
+		room_comps 	= []
+		rio_comps.select{|comp| 
+			comp_room	= get_comp_room comp
+			room_comps << comp if comp_room == space_name
+		}
+		room_comps
+	end
+
+	def self.get_space_group name
+		Sketchup.active_model.entities.grep(Sketchup::Group).select{|group| (group.get_attribute :rio_atts, 'space_name')==name}
+	end
+
+	def self.check_region_name name
+		space_names = get_space_names
+		return true unless space_names.include?(name)
+		return false
+	end
+
+	def self.add_wall_to_floor space_inputs
+		space_name		= space_inputs['space_name']
+		wall_height		= space_inputs['wall_height'].to_i.mm
+		door_height		= space_inputs['door_height'].to_i.mm
+		window_height	= space_inputs['window_height'].to_i.mm
+		window_offset	= space_inputs['window_offset'].to_i.mm
+		wall_color		= space_inputs['wall_color']
+
+		space_group 	= get_space_group space_name 
+		if space_group == 0
+			puts "No space with the name found"
+			return false
+		end
+
+		model			= Sketchup.active_model
+		ents			= model.entities
+		seln 			= model.selection
+		layers			= model.layers
+
+		space_face 		= space_group.entities.grep
+		space_edges		= space_face.outer_loop.edges 
+		zvector 		= Geom::Vector3d.new(0, 0, 1)
+		
+		#----------------------------Add Walls--------------------
+		wall_faces 	= []
+		space_edges.each{ |edge|
+			if edge.layer.name == 'Wall' 
+				vertices	= edge.vertices
+				pt1 		= vertices[0].position
+				pt2			= vertices[1].position
+
+				pt3			= pt2.offset(zvector, wall_height)
+				pt4			= pt1.offset(zvector, wall_height)
+				
+				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+				wall_face.layer = 'DP_Wall'
+				wall_faces << wall_face
+			end
+		}
+
+		#----------------------------Add door top face-----------------------------
+		if door_height
+			space_edges.each {|edge|
+				if edge.layer.name == 'Door' 
+					vertices	= edge.vertices
+					pt1 		= vertices[0].position.offset(zvector, door_height)
+					pt2			= vertices[1].position.offset(zvector, door_height)
+
+					pt3			= vertices[1].position.offset(zvector, wall_height)
+					pt4			= vertices[0].position.offset(zvector, wall_height)
+
+					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+					wall_face.layer = 'DP_Wall'
+					wall_faces << wall_face
+				end
+				
+			}
+		else
+			#Create walls for windows and doors
+			if edge.layer.name == 'Door' 
+				vertices	= edge.vertices
+				pt1 		= vertices[0].position
+				pt2			= vertices[1].position
+
+				pt3			= pt2.offset(zvector, wall_height)
+				pt4			= pt1.offset(zvector, wall_height)
+				
+				wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+				wall_face.layer = 'DP_Wall'
+				wall_faces << wall_face
+			end
+		end
+
+		#----------------------------Add Window top face-----------------------------
+		if window_height
+			puts "window h :#{window_height}"
+			puts "window o :#{window_offset}"
+			combined_ht = (window_offset+window_height).mm
+			height_arr = [window_offset, combined_ht, wall_height]
+			puts "height_arr : #{height_arr}"
+			#This algorithm will create a single 
+			space_edges.each {|edge|
+				if edge.layer.name == 'Window' 
+					vertices	= edge.vertices
+					
+					#Normal wall rise for Window
+					pt1 		= vertices[0].position
+					pt2			= vertices[1].position
+
+					pt3			= pt2.offset(zvector, window_offset)
+					pt4			= pt1.offset(zvector, window_offset)
+
+					puts "Window pts : #{pt1} : #{pt2} : #{pt3} : #{pt4} " 
+					wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+					wall_face.layer = 'DP_Wall'
+					wall_faces << wall_face
+					#wall_face.edges.each{|ed| (ents.erase_entities ed) if (ed.line[1] == zvector || ed.line[1] == zvector.reverse)}
+
+					#Extra face for window only when the combined height is less than Wall height
+					if (window_offset+window_height < wall_height)
+						pt1 		= vertices[0].position.offset(zvector, window_offset+window_height)
+						pt2			= vertices[1].position.offset(zvector, window_offset+window_height)
+
+						pt3			= vertices[1].position.offset(zvector, wall_height)
+						pt4			= vertices[0].position.offset(zvector, wall_height)
+
+						wall_face 	= ents.add_face pt1, pt2, pt3, pt4
+						wall_face.layer = 'DP_Wall'
+						wall_faces << wall_face
+					end
+					window_face 	= edge.faces
+					window_face.delete space_face
+					window_faces = find_adj_window_face [window_face[0]]
+					
+					edge_array = []
+					window_faces.each{|wface| edge_array << wface.edges}
+					edge_array.flatten!.uniq!.select!{|x| x.layer.name=='Window'}
+					
+					edge_array.sort_by!{|x| x.bounds.center.distance edge.bounds.center}
+					sel.add(edge_array.last)
+					last_edge 	= edge_array.last
+					
+					
+					#puts "height_arr : #{height_arr}"
+					# height_arr.each { |face_height|
+						# puts "face_height : #{face_height}"
+						# window_faces.each{|face|
+							# verts = face.vertices
+							# pt_arr = []
+							# verts.each{|pt|
+								# pt_arr << pt.position.offset(zvector, face_height)
+							# }
+							# temp_face = ents.add_face(pt_arr) if pt_arr
+							# wall_faces << temp_face
+						# }
+					# }
+					#Removing the loop above......Dunno why it doesnt work for unit conversion.....window_height+window_offset doesnt work :(
+					temp_arr = []
+					temp_face = nil
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, window_offset)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							#temp_arr << [temp_face, window_offset]
+							wall_faces << temp_face
+					}
+					
+					verts 	= last_edge.vertices
+					ledge1 	= verts[0].position
+					ledge2 	= verts[1].position
+					pt3		= ledge2.offset(zvector, window_offset)
+					pt4		= ledge1.offset(zvector, window_offset)
+					temp_face = ents.add_face(ledge1, ledge2, pt3, pt4) #Down back  window face
+					wall_faces << temp_face
+					
+					
+					pt1 	= ledge1.offset(zvector, window_offset+window_height)
+					pt2 	= ledge2.offset(zvector, window_offset+window_height)
+					pt3		= ledge2.offset(zvector, wall_height)
+					pt4		= ledge1.offset(zvector, wall_height)
+					temp_face = ents.add_face(pt1, pt2, pt3, pt4) #Up back window face
+					wall_faces << temp_face
+					
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, window_height+window_offset)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							wall_faces << temp_face
+					}
+					window_faces.each{|face|
+							verts = face.vertices
+							pt_arr = []
+							verts.each{|pt|
+								pt_arr << pt.position.offset(zvector, wall_height)
+							}
+							temp_face = ents.add_face(pt_arr) if pt_arr
+							reverse_offset = door_height - (window_height+window_offset)
+							#temp_arr << [temp_face, reverse_offset]
+							wall_faces << temp_face
+					}
+					
+				end
+				
+			}
+		else
+			#Create walls for windows and doors
+			space_edges.each {|edge|
+				if edge.layer.name == 'Window' 
+					vertices	= edge.vertices
+					pt1 		= vertices[0].position
+					pt2			= vertices[1].position
+
+					pt3			= pt2.offset(zvector, wall_height)
+					pt4			= pt1.offset(zvector, wall_height)
+					
+					window_face 	= ents.add_face pt1, pt2, pt3, pt4
+					window_face.layer = 'DP_Window'
+					wall_faces << window_face
+				end
+			}
+		end
+
+		#pre processingo
+		prev_active_layer 	= Sketchup.active_model.active_layer.name
+		model.active_layer 	= wall_layer
+		
+		color_array 		= Sketchup::Color.names
+		wall_color			= color_array[rand(140)] wall_color.nil?
+		
+		wall_faces.each{|wall|
+			wall.material 		= wall_color
+			wall.back_material 	= wall_color
+		}
+		wall_group 			= model.active_entities.add_group(wall_faces)
+		wall_group.set_attribute(:rio_atts, 'wall_space_name', space_name)
+
+		model.active_layer 	= prev_active_layer
+		return true
+	end
+
 	def self.create_spacetype space_inputs, create_face_flag=false
 		Sketchup.active_model.start_operation '2d_to_3d'
-		if input_arr.is_a?(Array)
+		if space_inputs.is_a?(Array)
 			space_type 		= space_inputs[0]
 			space_name		= space_inputs[1]
 			wall_height		= space_inputs[2].to_i.mm

@@ -44,6 +44,19 @@ WorkingDrawing::initialize
 #
 #-----------------------------------------------------------------------------------------
 
+def zrot
+	seln = Sketchup.active_model.selection
+	if seln.length == 0
+		puts "No component selected"
+		return
+	end
+	comp=seln[0]
+	point = comp.transformation.origin
+	vector = Geom::Vector3d.new(0,0,1)
+	angle = 90.degrees
+	transformation = Geom::Transformation.rotation(point, vector, angle)
+	comp.transform!(transformation)
+end
 #------------------------------------------Observers--------------------------------------
 # class MyEntitiesObserver < Sketchup::EntitiesObserver
 	# def onElementAdded(entities, entity)
